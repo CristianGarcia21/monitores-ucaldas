@@ -1,9 +1,13 @@
-// Todas las llamadas van a /api/... (nginx las reenvía al controlador Java).
-const API = '/api';
+// Lógica de la interfaz. Las llamadas HTTP están en api.js (cargado antes que este archivo).
 
-fetch(`${API}/health`)
-    .then((r) => r.json())
-    .then((d) => { document.getElementById('estado').textContent = `Backend: ${d.status}`; })
-    .catch(() => { document.getElementById('estado').textContent = 'Backend no disponible'; });
+const estado = document.getElementById('estado');
+
+consultarSalud()
+    .then((salud) => {
+        estado.textContent = USE_MOCK ? 'Modo de prueba (datos simulados)' : `Backend: ${salud.status}`;
+    })
+    .catch(() => {
+        estado.textContent = 'Backend no disponible';
+    });
 
 // TODO: listar, buscar por código, registrar, actualizar y eliminar monitores
