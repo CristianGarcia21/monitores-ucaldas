@@ -14,7 +14,10 @@ Proyecto final de Ingeniería de Software III (2026-2).
 | `database/`        | Base de datos           | PostgreSQL 16              | 5432   |
 | `docs/`            | Entregables y contrato  | Markdown / diagramas       | —      |
 
-El contrato que deben cumplir todos los servicios está en **[docs/api-contract.md](docs/api-contract.md)**.
+Reglas obligatorias para todo el equipo:
+
+- **[docs/api-contract.md](docs/api-contract.md)**: contrato del sistema (rutas, JSON, validaciones, mensajes de error exactos, esquema de BD). Si algo contradice el contrato, manda el contrato.
+- **[CONTRIBUTING.md](CONTRIBUTING.md)**: ramas, commits, PRs, versiones permitidas y estilo de código.
 
 ## Ejecutar todo
 
@@ -40,10 +43,10 @@ docker compose up --build php-service                # PHP (+ sus dependencias)
 
 ## Flujo de trabajo del equipo
 
-1. Cada integrante tiene un issue asignado y trabaja **solo en su carpeta**.
-2. Crea una rama `feature/<carpeta>` (ej. `feature/php-service`).
-3. Abre un Pull Request hacia `main` que cierre su issue (`Closes #N`).
-4. Nadie cambia el contrato sin avisar (ver `docs/api-contract.md`).
+1. Cada integrante tiene un **milestone con su nombre** (pestaña *Issues → Milestones*) con su issue principal y todas sus sub-issues.
+2. Trabaja **solo en su carpeta**, en una rama `feature/<carpeta>-<issue>` (ej. `feature/php-service-22`).
+3. Abre un Pull Request hacia `main` que cierre la sub-issue (`Closes #N`).
+4. Nadie cambia el contrato sin el proceso del §14 del contrato.
 
 ## Equipo
 

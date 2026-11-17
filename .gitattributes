@@ -1,0 +1,13 @@
+# Normalizar saltos de línea: LF en el repo y en los contenedores Linux
+* text=auto eol=lf
+
+# Scripts de Windows con CRLF
+*.ps1 text eol=crlf
+
+# Binarios
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.docx binary
+*.jar binary
