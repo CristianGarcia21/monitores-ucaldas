@@ -1,0 +1,20 @@
+# General
+.env
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+
+# Java
+java-controller/target/
+*.class
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# PHP
+php-service/vendor/

@@ -1,0 +1,67 @@
+# Orquestación global: levanta toda la arquitectura con `docker compose up --build`
+# Flujo: frontend (nginx) -> java-controller -> php-service -> python-service -> database
+
+services:
+  database:
+    image: postgres:16-alpine
+    container_name: monitores-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-monitores}
+      POSTGRES_USER: ${POSTGRES_USER:-monitores}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-monitores}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  python-service:
+    build: ./python-service
+    container_name: monitores-python
+    environment:
+      DB_HOST: database
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-monitores}
+      DB_USER: ${POSTGRES_USER:-monitores}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-monitores}
+    ports:
+      - "${PYTHON_PORT:-8083}:8083"
+    depends_on:
+      database:
+        condition: service_healthy
+
+  php-service:
+    build: ./php-service
+    container_name: monitores-php
+    environment:
+      PYTHON_SERVICE_URL: http://python-service:8083
+    ports:
+      - "${PHP_PORT:-8082}:8082"
+    depends_on:
+      - python-service
+
+  java-controller:
+    build: ./java-controller
+    container_name: monitores-java
+    environment:
+      PHP_SERVICE_URL: http://php-service:8082
+    ports:
+      - "${JAVA_PORT:-8081}:8081"
+    depends_on:
+      - php-service
+
+  frontend:
+    build: ./frontend
+    container_name: monitores-frontend
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      - java-controller
+
+volumes:
+  db-data:
