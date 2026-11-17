@@ -87,7 +87,7 @@ docs(docs): diagrama de secuencia del registro
 |----------|--------|
 | Todos | Nombres del dominio en **español** y coherentes con el JSON (`monitor`, `materia`, `codigo`, `correo`). Comentarios en español. Indentación con espacios (ver `.editorconfig`). Sin código comentado ni `console.log`/`print` de depuración en el PR. |
 | JavaScript | `camelCase` para variables y funciones; `const`/`let` (nunca `var`); `async/await`; usar `textContent` para mostrar datos del usuario (nunca `innerHTML` con datos). |
-| Java | Paquete base `co.edu.ucaldas.monitores`; subpaquetes `controller`, `dto`, `client`, `exception`. `PascalCase` clases, `camelCase` métodos. DTOs como `record`. |
+| Java | Paquete base `co.edu.ucaldas.monitores`; subpaquetes `controller`, `validation`, `client`, `exception`. `PascalCase` clases, `camelCase` métodos. DTOs como `record`. |
 | PHP | `declare(strict_types=1);` · funciones en `camelCase` · clases en `PascalCase` · un archivo por clase. |
 | Python | PEP 8 · `snake_case` · type hints en funciones · módulos `db.py`, `schemas.py`, `repository.py`, `main.py`. |
 | SQL | Palabras clave en MAYÚSCULA, tablas y columnas en `snake_case` minúscula. |
