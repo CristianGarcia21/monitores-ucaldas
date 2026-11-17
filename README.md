@@ -47,11 +47,38 @@ docker compose up --build php-service                # PHP (+ sus dependencias)
 
 ## Equipo
 
-| Integrante       | Responsabilidad                              |
-|------------------|----------------------------------------------|
-| Tania Botina     | Frontend (HTML/CSS/JS)                        |
-| Jose Daniel      | Controlador Java                              |
-| Juan Fernando    | Servicio PHP                                  |
-| Juan Diego       | Servicio Python                               |
-| Cristian Garcia  | Base de datos, Docker e integración           |
-| Valentina Galvis | Documentación y diagramas                     |
+| Integrante       | Responsabilidad                      | Issue | Sub-issues | Horas |
+|------------------|--------------------------------------|-------|------------|-------|
+| Tania Botina     | Frontend (HTML/CSS/JS)               | #1    | #7 – #13   | 15.5  |
+| Cristian Garcia  | Controlador Java                     | #2    | #14 – #19  | 13    |
+| Juan Fernando    | Servicio PHP                         | #3    | #20 – #25  | 11.5  |
+| Juan Diego       | Servicio Python                      | #4    | #26 – #31  | 13    |
+| Valentina Galvis | Base de datos, Docker e integración  | #5    | #32 – #38  | 12    |
+| Jose Daniel      | Documentación y diagramas            | #6    | #39 – #44  | 17.5  |
+
+## Cronograma (entrega: sábado 21 de noviembre)
+
+| Día        | Qué se hace                                                                 |
+|------------|-----------------------------------------------------------------------------|
+| mar 17 nov | Estructura base de cada componente (sin bloqueos)                           |
+| mié 18 nov | Lógica principal de cada servicio, trabajando contra mocks (sin bloqueos)   |
+| jue 19 nov | Validaciones, manejo de errores y pruebas. **Python debe terminar #29**      |
+| vie 20 nov | Integración en cadena: Python → PHP → Java → Frontend → verificación final  |
+| sáb 21 nov | Documento final consolidado y entrega                                       |
+
+## Dependencias entre tareas
+
+Casi todo se puede hacer en paralelo gracias al [contrato de API](docs/api-contract.md).
+Solo las tareas de **integración** esperan a otras:
+
+```
+#29 Python endpoints (Juan Diego)
+  └─► #25 Integración PHP ↔ Python (Juan Fernando)
+        └─► #19 Integración Java ↔ PHP (Cristian)
+              ├─► #13 Integración frontend (Tania)
+              └─► #37 Verificación end-to-end (Valentina) ◄── #13
+                    ├─► #38 README final (Valentina)
+                    └─► #44 Documento final (Jose Daniel) ◄── #39 #40 #41 #42 #43
+```
+
+Quien termina una tarea que bloquea a otra debe comentar en la issue bloqueada para avisar.
