@@ -174,3 +174,9 @@ class MateriaOut(BaseModel):
     id: int
     codigo: str
     nombre: str
+
+
+class ErrorOut(BaseModel):
+    """Cuerpo de todo error (J8): una sola clave."""
+
+    error: str

@@ -11,7 +11,9 @@ from typing import Any
 
 import psycopg
 from fastapi import FastAPI, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import repository
 from db import get_connection
@@ -19,6 +21,8 @@ from schemas import (
     CODIGO_FORMATO,
     CORREO_FORMATO,
     NOMBRE_LONGITUD,
+    TIPO_ERROR_CONTRATO,
+    ErrorOut,
     MateriaOut,
     MonitorCreate,
     MonitorOut,
@@ -28,12 +32,23 @@ from schemas import (
 
 SERVICIO = "python-service"
 
-# Catálogo de errores §7 que genera esta capa (además de E01–E09 en schemas.py)
+# Catálogo de errores §7 que genera esta capa (además de E02–E09 en schemas.py)
+JSON_INVALIDO = "JSON inválido"  # E01
 MATERIA_NO_EXISTE = "La materia indicada no existe"  # E10
 MONITOR_NO_EXISTE = "No existe un monitor con el código {codigo}"  # E11
 MONITOR_DUPLICADO = "Ya existe un monitor con el código {codigo}"  # E12
+RUTA_NO_ENCONTRADA = "Ruta no encontrada"  # E13
+METODO_NO_PERMITIDO = "Método no permitido"  # E14
 BD_NO_DISPONIBLE = "Base de datos no disponible"  # E17
 ERROR_INTERNO = "Error interno del servidor"  # E18
+
+# Errores HTTP que genera el propio framework: 404/405 del enrutador y 400 si el cuerpo no se
+# puede leer como JSON (por ejemplo, bytes que no son UTF-8)
+MENSAJES_HTTP = {
+    400: JSON_INVALIDO,
+    404: RUTA_NO_ENCONTRADA,
+    405: METODO_NO_PERMITIDO,
+}
 
 # CheckViolation → mensaje del campo cuya restricción falló (el nombre de la restricción lo incluye)
 MENSAJES_CHECK = (
@@ -88,18 +103,51 @@ def mensaje_check(restriccion: str | None) -> str | None:
     return None
 
 
+def mensaje_validacion(errores: list[dict[str, Any]]) -> str:
+    """§6.3: se responde solo el primer error.
+
+    Los errores de campo traen ya el mensaje del catálogo (schemas.py). Cualquier otro (JSON mal
+    formado, cuerpo vacío o que no es un objeto) es E01.
+    """
+    primero = errores[0] if errores else {}
+    if primero.get("type") == TIPO_ERROR_CONTRATO:
+        return primero["msg"]
+    return JSON_INVALIDO
+
+
 app = FastAPI(
     title="Servicio Python - Persistencia",
     default_response_class=RespuestaJson,
     # H1: /monitores/ no es una ruta válida (404); sin esto FastAPI redirigiría con 307
     redirect_slashes=False,
+    # Documenta en Swagger el formato real de los errores (en lugar del 422 que FastAPI agrega)
+    responses={
+        "4XX": {"model": ErrorOut, "description": "Error del catálogo §7 del contrato"},
+        "5XX": {"model": ErrorOut, "description": "Error del catálogo §7 del contrato"},
+    },
 )
 
 
+@app.exception_handler(Exception)
 async def error_interno(request: Request, exc: Exception) -> Response:
     """E18: el detalle solo va al log (T2, T4)."""
     logger.error("[%s] Error no previsto en %s %s", SERVICIO, request.method, request.url.path, exc_info=exc)
     return respuesta_error(500, ERROR_INTERNO)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def manejar_error_http(request: Request, exc: StarletteHTTPException) -> Response:
+    """E13/E14 (y E01): reemplaza el {"detail": ...} de FastAPI por {"error": ...}."""
+    mensaje = MENSAJES_HTTP.get(exc.status_code)
+    if mensaje is None:
+        return await error_interno(request, exc)
+    return respuesta_error(exc.status_code, mensaje, headers=exc.headers)
+
+
+@app.exception_handler(RequestValidationError)
+async def manejar_error_validacion(request: Request, exc: RequestValidationError) -> Response:
+    """Datos inválidos → 400 (nunca 422, H6) con el mensaje del catálogo."""
+    return respuesta_error(400, mensaje_validacion(exc.errors()))
 
 
 @app.exception_handler(ErrorApi)
@@ -129,7 +177,11 @@ async def manejar_bd_no_disponible(request: Request, exc: psycopg.OperationalErr
 async def registrar_peticion(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
     """T2: una línea por petición, `[python-service] MÉTODO RUTA -> STATUS (ms)`."""
     inicio = time.perf_counter()
-    respuesta = await call_next(request)
+    try:
+        respuesta = await call_next(request)
+    except Exception as exc:
+        # Lo no previsto se responde aquí (E18) para que la línea del log muestre el 500
+        respuesta = await error_interno(request, exc)
     duracion_ms = round((time.perf_counter() - inicio) * 1000)
     logger.info("[%s] %s %s -> %d (%d ms)", SERVICIO, request.method, request.url.path, respuesta.status_code, duracion_ms)
     return respuesta
