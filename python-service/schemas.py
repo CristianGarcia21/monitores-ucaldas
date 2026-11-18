@@ -4,13 +4,15 @@ Cada campo se normaliza (§6.1) y se valida (§6.2) en un validador `mode="befor
 mensaje exacto del catálogo (§7). Pydantic valida los campos en el orden en que se declaran, así
 que el primer error de la lista respeta el orden fijo del §6.3.
 """
+
 import re
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_core import PydanticCustomError
 
-# Catálogo de errores §7 (E02–E09): se copian textualmente
+# Catálogo de errores §7 (E01–E09): se copian textualmente
+JSON_INVALIDO = "JSON inválido"
 CODIGO_OBLIGATORIO = "El código es obligatorio"
 CODIGO_FORMATO = "El código solo puede tener letras, números y guiones (máximo 20 caracteres)"
 NOMBRE_OBLIGATORIO = "El nombre es obligatorio"
@@ -23,10 +25,18 @@ MATERIA_OBLIGATORIA = "La materia es obligatoria"
 # Tipo de error de Pydantic cuyo mensaje es uno del catálogo y se responde tal cual
 TIPO_ERROR_CONTRATO = "contrato"
 
-# Regex del §6.2 (se usan con fullmatch, equivalente a ^...$)
+# Regex del §6.2 (se usan con fullmatch, equivalente a ^...$). re.ASCII: \s de Java es solo ASCII.
+# El correo además excluye NUL, que PostgreSQL no puede guardar en un campo de texto
 PATRON_CODIGO = re.compile(r"[A-Z0-9-]{1,20}")
-PATRON_CORREO = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
-PATRON_ESPACIOS = re.compile(r"\s+")
+PATRON_CORREO = re.compile(r"[^@\s\x00]+@[^@\s\x00]+\.[^@\s\x00]+", re.ASCII)
+
+# §6.1 dice que Java y Python normalizan igual. Se replica lo que hace MonitorValidator.java:
+# - trim() de Java quita los caracteres <= U+0020 (no los espacios Unicode)
+# - "\\s+" de Java solo reconoce espacios ASCII
+# - isBlank() de Java usa Character.isWhitespace, que no cuenta los espacios no separables
+CARACTERES_TRIM = "".join(chr(c) for c in range(0x21))
+PATRON_ESPACIOS = re.compile(r"[ \t\n\x0b\f\r]+")
+NO_SON_ESPACIO_EN_JAVA = "\xa0\u2007\u202f\u0085"
 
 # materia_id es INTEGER en PostgreSQL: un número mayor no puede ser una materia válida
 MAX_ENTERO_BD = 2_147_483_647
@@ -34,33 +44,37 @@ MAX_ENTERO_BD = 2_147_483_647
 
 def normalizar_codigo(codigo: str) -> str:
     """§6.1: trim + mayúsculas. Se usa también para el {codigo} de la ruta."""
-    return codigo.strip().upper()
+    return codigo.strip(CARACTERES_TRIM).upper()
 
 
 def normalizar_nombre(nombre: str) -> str:
     """§6.1: trim + espacios internos múltiples reemplazados por uno solo."""
-    return PATRON_ESPACIOS.sub(" ", nombre.strip())
+    return PATRON_ESPACIOS.sub(" ", nombre.strip(CARACTERES_TRIM))
 
 
 def normalizar_correo(correo: str) -> str:
     """§6.1: trim + minúsculas."""
-    return correo.strip().lower()
+    return correo.strip(CARACTERES_TRIM).lower()
 
 
 def _error(mensaje: str) -> PydanticCustomError:
     return PydanticCustomError(TIPO_ERROR_CONTRATO, mensaje)
 
 
+def _es_espacio(caracter: str) -> bool:
+    return caracter.isspace() and caracter not in NO_SON_ESPACIO_EN_JAVA
+
+
 def _texto(valor: Any) -> str | None:
-    """Devuelve el string o None si está "vacío" (§6.2): ausente, null, no string o '' tras el trim."""
-    if not isinstance(valor, str) or not valor.strip():
+    """El string, o None si está "vacío" (§6.2): ausente, null, no string o solo espacios."""
+    if not isinstance(valor, str) or all(_es_espacio(c) for c in valor):
         return None
     return valor
 
 
 def _obligatorio() -> Any:
     # El valor por defecto None hace que el validador "before" también se ejecute cuando el
-    # campo no viene, para responder el mensaje del catálogo en vez del "Field required" de Pydantic
+    # campo no viene, para responder el mensaje del catálogo y no el "Field required" de Pydantic
     return Field(default=None, validate_default=True)
 
 
@@ -88,6 +102,10 @@ class _ValidacionMonitor(BaseModel):
         if nombre is None:
             raise _error(NOMBRE_OBLIGATORIO)
         nombre = normalizar_nombre(nombre)
+        if "\x00" in nombre:
+            # PostgreSQL no admite NUL en un texto; el contrato no tiene regla para esto y el
+            # cuerpo no se puede guardar tal como llegó (sin esto respondería 500)
+            raise _error(JSON_INVALIDO)
         if not 3 <= len(nombre) <= 150:
             raise _error(NOMBRE_LONGITUD)
         return nombre
@@ -108,7 +126,7 @@ class _ValidacionMonitor(BaseModel):
     @field_validator("materia_id", mode="before", check_fields=False)
     @classmethod
     def _validar_materia_id(cls, valor: Any) -> int:
-        # Entero JSON estricto: "1", 1.5, 1.0 y true se rechazan (bool es subclase de int en Python)
+        # Entero JSON estricto: "1", 1.5, 1.0 y true se rechazan (en Python bool hereda de int)
         if type(valor) is not int or not 0 < valor <= MAX_ENTERO_BD:
             raise _error(MATERIA_OBLIGATORIA)
         return valor
@@ -138,7 +156,7 @@ class MonitorCreate(_ValidacionMonitor):
 
 
 class MonitorUpdate(_ValidacionMonitor):
-    """Cuerpo de PUT /monitores/{codigo}: reemplazo completo; un `codigo` en el body se ignora (J6)."""
+    """Cuerpo de PUT /monitores/{codigo}: reemplazo completo; `codigo` del body se ignora (J6)."""
 
     model_config = ConfigDict(
         json_schema_extra={

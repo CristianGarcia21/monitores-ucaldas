@@ -4,6 +4,7 @@ Cada función recibe una conexión abierta con `db.get_connection()`, así quien
 operaciones van en la misma transacción. Los valores **siempre** viajan como parámetros de psycopg
 (`%(nombre)s`); nunca se concatenan en el SQL (contrato T4).
 """
+
 from typing import Any
 
 import psycopg
@@ -22,7 +23,9 @@ def listar_materias(conexion: psycopg.Connection) -> list[dict[str, Any]]:
 
 
 def existe_materia(conexion: psycopg.Connection, materia_id: int) -> bool:
-    fila = conexion.execute("SELECT 1 FROM materias WHERE id = %(id)s", {"id": materia_id}).fetchone()
+    fila = conexion.execute(
+        "SELECT 1 FROM materias WHERE id = %(id)s", {"id": materia_id}
+    ).fetchone()
     return fila is not None
 
 
@@ -33,7 +36,9 @@ def listar_monitores(conexion: psycopg.Connection) -> list[dict[str, Any]]:
 
 def obtener_monitor(conexion: psycopg.Connection, codigo: str) -> dict[str, Any] | None:
     """El monitor con ese código (ya normalizado) o None si no existe."""
-    return conexion.execute(SELECT_MONITOR + " WHERE mo.codigo = %(codigo)s", {"codigo": codigo}).fetchone()
+    return conexion.execute(
+        SELECT_MONITOR + " WHERE mo.codigo = %(codigo)s", {"codigo": codigo}
+    ).fetchone()
 
 
 def crear_monitor(conexion: psycopg.Connection, datos: dict[str, Any]) -> dict[str, Any]:
@@ -48,7 +53,8 @@ def crear_monitor(conexion: psycopg.Connection, datos: dict[str, Any]) -> dict[s
             VALUES (%(codigo)s, %(nombre)s, %(correo)s, %(materia_id)s)
             RETURNING codigo, nombre, correo, materia_id
         )
-        SELECT nuevo.codigo, nuevo.nombre, nuevo.correo, nuevo.materia_id, ma.nombre AS materia_nombre
+        SELECT nuevo.codigo, nuevo.nombre, nuevo.correo, nuevo.materia_id,
+               ma.nombre AS materia_nombre
         FROM nuevo
         JOIN materias ma ON ma.id = nuevo.materia_id
         """,
@@ -57,7 +63,7 @@ def crear_monitor(conexion: psycopg.Connection, datos: dict[str, Any]) -> dict[s
 
 
 def actualizar_monitor(conexion: psycopg.Connection, codigo: str, datos: dict[str, Any]) -> int:
-    """Reemplaza los campos editables (el código no cambia). Devuelve las filas afectadas (0 o 1)."""
+    """Reemplaza los campos editables (el código no cambia). Devuelve las filas afectadas."""
     cursor = conexion.execute(
         """
         UPDATE monitores
@@ -71,5 +77,7 @@ def actualizar_monitor(conexion: psycopg.Connection, codigo: str, datos: dict[st
 
 def eliminar_monitor(conexion: psycopg.Connection, codigo: str) -> int:
     """Borra el monitor. Devuelve las filas afectadas (0 o 1)."""
-    cursor = conexion.execute("DELETE FROM monitores WHERE codigo = %(codigo)s", {"codigo": codigo})
+    cursor = conexion.execute(
+        "DELETE FROM monitores WHERE codigo = %(codigo)s", {"codigo": codigo}
+    )
     return cursor.rowcount

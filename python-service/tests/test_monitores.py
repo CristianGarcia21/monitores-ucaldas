@@ -1,4 +1,5 @@
 """CRUD completo contra la BD de Docker (contrato §8)."""
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -33,7 +34,9 @@ def test_listar_materias_ordenadas_por_nombre(cliente: TestClient) -> None:
 # --- POST /monitores -----------------------------------------------------------------------------
 
 
-def test_crear_monitor_responde_201_con_monitor_completo(cliente: TestClient, monitor_valido: dict) -> None:
+def test_crear_monitor_responde_201_con_monitor_completo(
+    cliente: TestClient, monitor_valido: dict
+) -> None:
     respuesta = cliente.post("/monitores", json=monitor_valido)
 
     assert respuesta.status_code == 201
@@ -45,7 +48,12 @@ def test_crear_monitor_responde_201_con_monitor_completo(cliente: TestClient, mo
 def test_crear_normaliza_los_datos_antes_de_guardar(cliente: TestClient) -> None:
     creado = crear(
         cliente,
-        {"codigo": "  test-002 ", "nombre": " Ana   López ", "correo": "Ana@UCaldas.edu.co ", "materia_id": 2},
+        {
+            "codigo": "  test-002 ",
+            "nombre": " Ana   López ",
+            "correo": "Ana@UCaldas.edu.co ",
+            "materia_id": 2,
+        },
     )
 
     assert creado == {
@@ -74,7 +82,9 @@ def test_crear_duplicado_responde_409(cliente: TestClient, monitor_valido: dict)
     assert respuesta.json() == {"error": "Ya existe un monitor con el código TEST-001"}
 
 
-def test_crear_con_materia_inexistente_responde_400(cliente: TestClient, monitor_valido: dict) -> None:
+def test_crear_con_materia_inexistente_responde_400(
+    cliente: TestClient, monitor_valido: dict
+) -> None:
     respuesta = cliente.post("/monitores", json={**monitor_valido, "materia_id": 99999})
 
     assert respuesta.status_code == 400
@@ -82,7 +92,9 @@ def test_crear_con_materia_inexistente_responde_400(cliente: TestClient, monitor
     assert cliente.get("/monitores/TEST-001").status_code == 404
 
 
-def test_materia_inexistente_se_reporta_antes_que_el_duplicado(cliente: TestClient, monitor_valido: dict) -> None:
+def test_materia_inexistente_se_reporta_antes_que_el_duplicado(
+    cliente: TestClient, monitor_valido: dict
+) -> None:
     crear(cliente, monitor_valido)
 
     respuesta = cliente.post("/monitores", json={**monitor_valido, "materia_id": 99999})
@@ -103,7 +115,9 @@ def test_tildes_y_enie_llegan_intactas(cliente: TestClient, monitor_valido: dict
 # --- GET /monitores ------------------------------------------------------------------------------
 
 
-def test_listar_monitores_es_arreglo_plano_ordenado_por_codigo(cliente: TestClient, monitor_valido: dict) -> None:
+def test_listar_monitores_es_arreglo_plano_ordenado_por_codigo(
+    cliente: TestClient, monitor_valido: dict
+) -> None:
     crear(cliente, {**monitor_valido, "codigo": "TEST-B"})
     crear(cliente, {**monitor_valido, "codigo": "TEST-A", "materia_id": 2})
 
@@ -112,6 +126,8 @@ def test_listar_monitores_es_arreglo_plano_ordenado_por_codigo(cliente: TestClie
     assert respuesta.status_code == 200
     monitores = respuesta.json()
     assert isinstance(monitores, list)
+    # J5: ningún campo es null
+    assert all(valor is not None for monitor in monitores for valor in monitor.values())
     # J7: por código (TEST-A antes que TEST-B aunque se creó después)
     de_prueba = [m for m in monitores if m["codigo"].startswith("TEST-")]
     assert de_prueba == [
@@ -135,7 +151,9 @@ def test_listar_monitores_es_arreglo_plano_ordenado_por_codigo(cliente: TestClie
 # --- GET /monitores/{codigo} ---------------------------------------------------------------------
 
 
-def test_obtener_monitor_normaliza_el_codigo_de_la_ruta(cliente: TestClient, monitor_valido: dict) -> None:
+def test_obtener_monitor_normaliza_el_codigo_de_la_ruta(
+    cliente: TestClient, monitor_valido: dict
+) -> None:
     creado = crear(cliente, monitor_valido)
 
     respuesta = cliente.get("/monitores/test-001")
@@ -154,7 +172,9 @@ def test_obtener_monitor_inexistente_responde_404(cliente: TestClient) -> None:
 # --- PUT /monitores/{codigo} ---------------------------------------------------------------------
 
 
-def test_actualizar_monitor_responde_200_con_monitor_actualizado(cliente: TestClient, monitor_valido: dict) -> None:
+def test_actualizar_monitor_responde_200_con_monitor_actualizado(
+    cliente: TestClient, monitor_valido: dict
+) -> None:
     crear(cliente, monitor_valido)
     cambios = {
         "codigo": "TEST-OTRO",
@@ -197,7 +217,9 @@ def test_monitor_inexistente_se_reporta_antes_que_la_materia(cliente: TestClient
     assert respuesta.status_code == 404
 
 
-def test_actualizar_con_materia_inexistente_responde_400(cliente: TestClient, monitor_valido: dict) -> None:
+def test_actualizar_con_materia_inexistente_responde_400(
+    cliente: TestClient, monitor_valido: dict
+) -> None:
     crear(cliente, monitor_valido)
 
     respuesta = cliente.put(
@@ -210,10 +232,14 @@ def test_actualizar_con_materia_inexistente_responde_400(cliente: TestClient, mo
     assert cliente.get("/monitores/TEST-001").json()["materia_id"] == 1
 
 
-def test_actualizar_con_datos_invalidos_responde_400(cliente: TestClient, monitor_valido: dict) -> None:
+def test_actualizar_con_datos_invalidos_responde_400(
+    cliente: TestClient, monitor_valido: dict
+) -> None:
     crear(cliente, monitor_valido)
 
-    respuesta = cliente.put("/monitores/TEST-001", json={"nombre": "Carlos Pérez", "materia_id": 1})
+    respuesta = cliente.put(
+        "/monitores/TEST-001", json={"nombre": "Carlos Pérez", "materia_id": 1}
+    )
 
     assert respuesta.status_code == 400
     assert respuesta.json() == {"error": "El correo es obligatorio"}
@@ -222,7 +248,9 @@ def test_actualizar_con_datos_invalidos_responde_400(cliente: TestClient, monito
 # --- DELETE /monitores/{codigo} ------------------------------------------------------------------
 
 
-def test_eliminar_monitor_responde_204_sin_cuerpo_y_luego_404(cliente: TestClient, monitor_valido: dict) -> None:
+def test_eliminar_monitor_responde_204_sin_cuerpo_y_luego_404(
+    cliente: TestClient, monitor_valido: dict
+) -> None:
     crear(cliente, monitor_valido)
 
     respuesta = cliente.delete("/monitores/test-001")

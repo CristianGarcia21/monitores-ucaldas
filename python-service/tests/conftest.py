@@ -1,4 +1,5 @@
 """Fixtures compartidas. Las pruebas de integración usan la BD de Docker (contrato §13)."""
+
 from collections.abc import Iterator
 
 import psycopg
@@ -14,7 +15,9 @@ PREFIJO = "TEST-"
 
 def borrar_datos_de_prueba() -> None:
     with get_connection() as conexion:
-        conexion.execute("DELETE FROM monitores WHERE codigo LIKE %(prefijo)s", {"prefijo": PREFIJO + "%"})
+        conexion.execute(
+            "DELETE FROM monitores WHERE codigo LIKE %(prefijo)s", {"prefijo": PREFIJO + "%"}
+        )
 
 
 @pytest.fixture
