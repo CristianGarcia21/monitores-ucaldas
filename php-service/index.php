@@ -64,6 +64,8 @@ function responder(int $estado, ?string $cuerpo): void
     http_response_code($estado);
 
     if ($cuerpo === null) {
+        // Sin cuerpo no se envía Content-Type (ni el text/html por defecto de PHP).
+        ini_set('default_mimetype', '');
         header_remove('Content-Type');
         return;
     }
