@@ -3,6 +3,7 @@ package co.edu.ucaldas.monitores.client;
 import java.nio.charset.StandardCharsets;
 
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -39,9 +40,12 @@ public class PhpClient {
         }
         try {
             return request.exchange((req, res) -> {
+                // El código se lee ANTES que el cuerpo: en un POST/PUT, HttpURLConnection aún no lo ha
+                // leído y, sin él, no entrega el cuerpo de los errores (4xx/5xx) y lanza IOException.
+                HttpStatusCode estado = res.getStatusCode();
                 byte[] bytes = res.getBody().readAllBytes();
                 String texto = bytes.length == 0 ? null : new String(bytes, StandardCharsets.UTF_8);
-                return ResponseEntity.status(res.getStatusCode()).body(texto);
+                return ResponseEntity.status(estado).body(texto);
             });
         } catch (ResourceAccessException e) {
             throw new ApiException(502, PHP_NO_DISPONIBLE);
