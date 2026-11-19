@@ -36,7 +36,9 @@
                 <div class="campo">
                     <label for="correo">Correo electrónico</label>
                     <input type="email" id="correo" name="correo" required maxlength="150"
-                           placeholder="ana.lopez@ucaldas.edu.co" autocomplete="off">
+                           placeholder="ana.lopez@ucaldas.edu.co" autocomplete="off"
+                           aria-describedby="ayuda-correo">
+                    <small id="ayuda-correo" class="ayuda">Usuario, @ y dominio, sin espacios. Ej.: ana.lopez@ucaldas.edu.co</small>
                 </div>
                 <div class="campo">
                     <label for="materia">Materia</label>
@@ -46,7 +48,7 @@
                 </div>
                 <div class="acciones-formulario">
                     <button type="submit" id="btn-guardar" class="btn btn-primario">Guardar</button>
-                    <button type="button" id="btn-cancelar" class="btn btn-secundario" hidden>Cancelar edición</button>
+                    <button type="button" id="btn-cancelar" class="btn btn-secundario">Cancelar</button>
                 </div>
             </form>
         </section>
@@ -82,6 +84,17 @@
             </div>
         </section>
     </main>
+
+    <!-- Confirmación de eliminación (app.js lo abre con showModal) -->
+    <dialog id="dialogo-eliminar" class="dialogo" aria-labelledby="dialogo-titulo" aria-describedby="dialogo-texto">
+        <h2 id="dialogo-titulo">Eliminar monitor</h2>
+        <p id="dialogo-texto"></p>
+        <p class="dialogo-aviso">Esta acción no se puede deshacer.</p>
+        <div class="dialogo-acciones">
+            <button type="button" id="dialogo-cancelar" class="btn btn-secundario" autofocus>Cancelar</button>
+            <button type="button" id="dialogo-aceptar" class="btn btn-peligro">Eliminar</button>
+        </div>
+    </dialog>
 
     <footer class="pie">
         <p>Ingeniería de Software III · 2026-2</p>

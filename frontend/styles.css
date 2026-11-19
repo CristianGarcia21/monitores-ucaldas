@@ -260,6 +260,47 @@ input:disabled {
 }
 
 /* ==========================================================================
+   Diálogo de confirmación
+   ========================================================================== */
+.dialogo {
+    width: min(26rem, calc(100vw - 2 * var(--espacio-m)));
+    padding: var(--espacio-l);
+    color: var(--color-texto);
+    background-color: var(--color-superficie);
+    border: none;
+    border-top: 4px solid var(--color-peligro);
+    border-radius: var(--radio);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
+}
+
+.dialogo::backdrop {
+    background-color: rgba(15, 23, 42, 0.45);
+}
+
+.dialogo h2 {
+    margin-bottom: var(--espacio-m);
+    font-size: var(--tamano-subtitulo);
+    color: var(--color-peligro);
+}
+
+.dialogo p {
+    margin: 0 0 var(--espacio-s);
+}
+
+.dialogo .dialogo-aviso {
+    margin-bottom: var(--espacio-l);
+    font-size: var(--tamano-pequeno);
+    color: var(--color-texto-suave);
+}
+
+.dialogo-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--espacio-s);
+}
+
+/* ==========================================================================
    Mensajes
    ========================================================================== */
 .mensajes:empty {
@@ -381,7 +422,8 @@ input:disabled {
         grid-template-columns: 1fr;
     }
 
-    .acciones-formulario .btn {
+    .acciones-formulario .btn,
+    .dialogo-acciones .btn {
         flex: 1 1 auto;
     }
 

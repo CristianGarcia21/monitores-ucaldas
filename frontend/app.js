@@ -14,6 +14,10 @@ const inputNombre = document.getElementById('nombre');
 const inputCorreo = document.getElementById('correo');
 const btnGuardar = document.getElementById('btn-guardar');
 const btnCancelar = document.getElementById('btn-cancelar');
+const dialogoEliminar = document.getElementById('dialogo-eliminar');
+const dialogoTexto = document.getElementById('dialogo-texto');
+const dialogoAceptar = document.getElementById('dialogo-aceptar');
+const dialogoCancelar = document.getElementById('dialogo-cancelar');
 
 const COLUMNAS_TABLA = 5;
 // Reglas del contrato §6.2
@@ -31,6 +35,13 @@ let ultimaPeticionTabla = 0;
 
 // Código del monitor que se está editando; null = el formulario está en modo registro
 let codigoEnEdicion = null;
+
+// Cambia cada vez que el formulario cambia de dueño (clic en Editar, cancelar, salir de edición).
+// Una respuesta lenta solo toca el formulario si este número sigue igual que cuando se pidió.
+let versionFormulario = 0;
+
+// Función que entrega la respuesta del diálogo de eliminar mientras está abierto; null si está cerrado
+let resolverDialogo = null;
 
 /* ==========================================================================
    Mensajes
@@ -231,13 +242,14 @@ function limpiarErroresCampos() {
 
 /** Vuelve al modo registro con el formulario vacío. */
 function salirDeEdicion() {
+    versionFormulario++;
     codigoEnEdicion = null;
     formMonitor.reset();
     limpiarErroresCampos();
     inputCodigo.disabled = false;
     tituloFormulario.textContent = 'Registrar monitor';
     btnGuardar.textContent = 'Guardar';
-    btnCancelar.hidden = true;
+    btnCancelar.textContent = 'Cancelar';
 }
 
 /** Carga un monitor en el formulario para editarlo (el código no se puede cambiar). */
@@ -251,7 +263,7 @@ function entrarEnEdicion(monitor) {
     selectMateria.value = String(monitor.materia_id);
     tituloFormulario.textContent = `Editar monitor ${monitor.codigo}`;
     btnGuardar.textContent = 'Guardar cambios';
-    btnCancelar.hidden = false;
+    btnCancelar.textContent = 'Cancelar edición';
     formMonitor.scrollIntoView({ behavior: 'smooth', block: 'start' });
     inputNombre.focus({ preventScroll: true });
 }
@@ -270,24 +282,42 @@ async function guardarMonitor(evento) {
     }
 
     const { datos } = validacion;
-    const enEdicion = codigoEnEdicion !== null;
+    const codigoEditado = codigoEnEdicion;
+    const version = versionFormulario;
+    // Si mientras responde el usuario pulsó Editar o Cancelar, el formulario ya es de otra acción
+    const formularioIntacto = () => version === versionFormulario;
+
     btnGuardar.disabled = true;
     try {
-        if (enEdicion) {
+        if (codigoEditado !== null) {
             // En PUT el código va en la ruta, no en el cuerpo (contrato)
             const cambios = { nombre: datos.nombre, correo: datos.correo, materia_id: datos.materia_id };
-            const monitor = await actualizarMonitor(codigoEnEdicion, cambios);
+            const monitor = await actualizarMonitor(codigoEditado, cambios);
             mostrarMensaje(`Monitor ${monitor.codigo} actualizado correctamente`, 'ok');
         } else {
             const monitor = await crearMonitor(datos);
             mostrarMensaje(`Monitor ${monitor.codigo} registrado correctamente`, 'ok');
         }
-        salirDeEdicion();
+        if (formularioIntacto()) {
+            salirDeEdicion();
+        }
         inputBusqueda.value = '';
         await cargarMonitores();
     } catch (error) {
         // Errores 400/404/409 del backend tal como llegan
         mostrarMensaje(error.message, 'error');
+        if (error.status === 404 && codigoEditado !== null) {
+            // El monitor que se editaba ya no existe (lo borró otra persona): salir y refrescar
+            if (formularioIntacto()) {
+                salirDeEdicion();
+            }
+            inputBusqueda.value = '';
+            await cargarMonitores();
+        } else if (error.status === 409 && formularioIntacto()) {
+            // Código repetido (RF6): se marca el campo para corregirlo
+            inputCodigo.setAttribute('aria-invalid', 'true');
+            inputCodigo.focus();
+        }
     } finally {
         btnGuardar.disabled = false;
     }
@@ -295,18 +325,105 @@ async function guardarMonitor(evento) {
 
 /** Botón Editar de una fila: trae el monitor actualizado del backend y lo carga en el formulario. */
 async function editarMonitor(codigo) {
+    // Solo cuenta el último clic: si llega antes la respuesta de otro Editar o se cancela, esta se ignora
+    const version = ++versionFormulario;
     try {
         const monitor = await obtenerMonitor(codigo);
+        if (version !== versionFormulario) {
+            return;
+        }
         limpiarMensaje();
         entrarEnEdicion(monitor);
     } catch (error) {
+        if (version !== versionFormulario) {
+            return;
+        }
         mostrarMensaje(error.message, 'error');
     }
 }
 
-function cancelarEdicion() {
+/** Botón Cancelar: descarta lo escrito (registro) o la edición en curso y deja el formulario vacío. */
+function cancelarFormulario() {
+    // salirDeEdicion cambia versionFormulario, así se descarta un Editar que aún no ha respondido
     salirDeEdicion();
     limpiarMensaje();
+}
+
+/* ==========================================================================
+   Eliminación (RF5)
+   ========================================================================== */
+
+/**
+ * Abre el diálogo de confirmación con el estilo de la aplicación (reemplaza a confirm()).
+ * Resuelve true solo si se pulsa Eliminar; Cancelar, Esc o clic fuera resuelven false.
+ */
+function confirmarEliminacion(codigo, nombre) {
+    const destacado = document.createElement('strong');
+    destacado.textContent = codigo;
+    dialogoTexto.replaceChildren('¿Eliminar al monitor ', destacado, nombre ? ` (${nombre})?` : '?');
+
+    return new Promise((resolver) => {
+        resolverDialogo = resolver;
+        dialogoEliminar.showModal();
+    });
+}
+
+/** Cierra el diálogo y entrega la respuesta a quien lo abrió (una sola vez). */
+function responderDialogo(aceptado) {
+    if (dialogoEliminar.open) {
+        dialogoEliminar.close();
+    }
+    const resolver = resolverDialogo;
+    resolverDialogo = null;
+    if (resolver) {
+        resolver(aceptado);
+    }
+}
+
+/** Esc: se cancela con la misma lógica que el botón Cancelar. */
+function cancelarDialogoConEscape(evento) {
+    evento.preventDefault();
+    responderDialogo(false);
+}
+
+/** Clic en el fondo oscuro (fuera del recuadro del diálogo) = cancelar. */
+function cerrarDialogoAlHacerClicFuera(evento) {
+    const caja = dialogoEliminar.getBoundingClientRect();
+    const dentro = evento.clientX >= caja.left && evento.clientX <= caja.right
+        && evento.clientY >= caja.top && evento.clientY <= caja.bottom;
+    if (evento.target === dialogoEliminar && !dentro) {
+        responderDialogo(false);
+    }
+}
+
+/** Botón Eliminar de una fila: pide confirmación y borra el monitor. */
+async function borrarMonitor(codigo, boton) {
+    // Se deshabilita ya: evita abrir dos confirmaciones o enviar dos DELETE con doble clic
+    boton.disabled = true;
+    const nombre = boton.closest('tr')?.cells[1]?.textContent ?? '';
+    if (!(await confirmarEliminacion(codigo, nombre))) {
+        boton.disabled = false;
+        return;
+    }
+
+    try {
+        await eliminarMonitor(codigo);
+        mostrarMensaje(`Monitor ${codigo} eliminado correctamente`, 'ok');
+    } catch (error) {
+        // 404 u otro error del backend tal como llega
+        mostrarMensaje(error.message, 'error');
+        if (error.status !== 404) {
+            boton.disabled = false;
+            return;
+        }
+    }
+
+    // Eliminado (o ya no existía): no se puede seguir editándolo y la tabla debe reflejarlo
+    if (codigoEnEdicion === codigo) {
+        salirDeEdicion();
+    }
+    inputBusqueda.value = '';
+    await cargarMonitores();
 }
 
 /** Un solo listener para los botones de todas las filas (la tabla se vuelve a pintar a menudo). */
@@ -315,8 +432,11 @@ function manejarAccionTabla(evento) {
     if (!boton) {
         return;
     }
-    if (boton.dataset.accion === 'editar') {
-        editarMonitor(boton.dataset.codigo);
+    const { accion, codigo } = boton.dataset;
+    if (accion === 'editar') {
+        editarMonitor(codigo);
+    } else if (accion === 'eliminar') {
+        borrarMonitor(codigo, boton);
     }
 }
 
@@ -356,9 +476,15 @@ async function comprobarBackend() {
 formBusqueda.addEventListener('submit', buscarMonitor);
 btnVerTodos.addEventListener('click', verTodos);
 formMonitor.addEventListener('submit', guardarMonitor);
-btnCancelar.addEventListener('click', cancelarEdicion);
+btnCancelar.addEventListener('click', cancelarFormulario);
 inputCodigo.addEventListener('input', filtrarCodigo);
 cuerpoTabla.addEventListener('click', manejarAccionTabla);
+dialogoAceptar.addEventListener('click', () => responderDialogo(true));
+dialogoCancelar.addEventListener('click', () => responderDialogo(false));
+dialogoEliminar.addEventListener('click', cerrarDialogoAlHacerClicFuera);
+dialogoEliminar.addEventListener('cancel', cancelarDialogoConEscape);
+// Respaldo: si el diálogo se cierra de otra forma, cuenta como cancelar
+dialogoEliminar.addEventListener('close', () => responderDialogo(false));
 
 comprobarBackend();
 cargarMaterias();
