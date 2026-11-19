@@ -9,6 +9,13 @@ const btnVerTodos = document.getElementById('btn-ver-todos');
 const cuerpoTabla = document.getElementById('cuerpo-tabla');
 
 const COLUMNAS_TABLA = 5;
+// Formato de código del contrato §6.2 (se acepta minúscula porque el backend normaliza a MAYÚSCULAS)
+const REGEX_CODIGO = /^[A-Za-z0-9-]{1,20}$/;
+const MENSAJE_CODIGO_INVALIDO = 'El código solo puede tener letras, números y guiones (máximo 20 caracteres)';
+
+// Cada carga de la tabla recibe un número; solo se pinta la respuesta de la más reciente,
+// para que una respuesta lenta no reemplace el resultado de una acción posterior.
+let ultimaPeticionTabla = 0;
 
 /* ==========================================================================
    Mensajes
@@ -98,10 +105,18 @@ async function cargarMaterias() {
 
 /** RF2: lista todos los monitores. */
 async function cargarMonitores() {
+    const peticion = ++ultimaPeticionTabla;
     mostrarFilaUnica('Cargando monitores...');
     try {
-        renderTabla(await listarMonitores());
+        const monitores = await listarMonitores();
+        if (peticion !== ultimaPeticionTabla) {
+            return;
+        }
+        renderTabla(monitores);
     } catch (error) {
+        if (peticion !== ultimaPeticionTabla) {
+            return;
+        }
         mostrarFilaUnica('No se pudieron cargar los monitores');
         mostrarMensaje(error.message, 'error');
     }
@@ -117,13 +132,28 @@ async function buscarMonitor(evento) {
         inputBusqueda.focus();
         return;
     }
+    // Un código con otros caracteres (p. ej. "/") no puede existir y alteraría la ruta de la API
+    if (!REGEX_CODIGO.test(codigo)) {
+        mostrarMensaje(MENSAJE_CODIGO_INVALIDO, 'error');
+        inputBusqueda.focus();
+        return;
+    }
 
+    const peticion = ++ultimaPeticionTabla;
     limpiarMensaje();
     mostrarFilaUnica('Buscando...');
     try {
-        renderTabla([await obtenerMonitor(codigo)]);
+        const monitor = await obtenerMonitor(codigo);
+        if (peticion !== ultimaPeticionTabla) {
+            return;
+        }
+        renderTabla([monitor]);
     } catch (error) {
-        mostrarFilaUnica('Sin resultados');
+        if (peticion !== ultimaPeticionTabla) {
+            return;
+        }
+        // "Sin resultados" solo si el monitor no existe; otros errores no significan que no exista
+        mostrarFilaUnica(error.status === 404 ? 'Sin resultados' : 'No se pudo realizar la búsqueda');
         mostrarMensaje(error.message, 'error');
     }
 }
