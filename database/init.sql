@@ -8,12 +8,18 @@ CREATE TABLE IF NOT EXISTS materias (
     nombre  VARCHAR(120) NOT NULL
 );
 
+-- Restricciones equivalentes a la validación del contrato §6.2 (§10).
+-- Los CHECK van en línea, uno por columna, para que PostgreSQL los nombre
+-- monitores_codigo_check, monitores_nombre_check y monitores_correo_check:
+-- python-service busca el nombre de la columna en la restricción para responder el 400 del campo.
 CREATE TABLE IF NOT EXISTS monitores (
-    codigo      VARCHAR(20)  PRIMARY KEY,
-    nombre      VARCHAR(150) NOT NULL,
-    correo      VARCHAR(150) NOT NULL,
-    materia_id  INTEGER      NOT NULL REFERENCES materias(id)
+    codigo      VARCHAR(20)  PRIMARY KEY CHECK (codigo ~ '^[A-Z0-9-]{1,20}$'),
+    nombre      VARCHAR(150) NOT NULL    CHECK (char_length(nombre) BETWEEN 3 AND 150),
+    correo      VARCHAR(150) NOT NULL    CHECK (correo ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' AND correo = lower(correo)),
+    materia_id  INTEGER      NOT NULL    REFERENCES materias(id) ON DELETE RESTRICT
 );
+
+CREATE INDEX IF NOT EXISTS idx_monitores_materia ON monitores(materia_id);
 
 -- Datos semilla de materias (contrato §10).
 -- SW3 y BD1 van primero para que reciban id = 1 e id = 2: las pruebas cuentan con esos ids.
