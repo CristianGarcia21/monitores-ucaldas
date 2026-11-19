@@ -10,6 +10,8 @@ declare(strict_types=1);
  * Cualquier otra ruta responde 404 (E13) y un método no soportado en una ruta válida, 405 (E14).
  */
 
+require_once __DIR__ . '/PythonClient.php';
+
 const SERVICIO = 'php-service';
 
 /** Resultados posibles de resolverRuta(). */
@@ -62,6 +64,9 @@ function responder(int $estado, ?string $cuerpo): void
     http_response_code($estado);
 
     if ($cuerpo === null) {
+        // Sin cuerpo no se envía Content-Type (ni el text/html por defecto de PHP).
+        ini_set('default_mimetype', '');
+        header_remove('Content-Type');
         return;
     }
 
@@ -78,11 +83,20 @@ function responderError(int $estado, string $mensaje): void
 }
 
 /**
- * Manejador de las rutas del CRUD. Se conecta con PythonClient en la tarea P4 (#23).
+ * Reenvía la petición a Python y devuelve su respuesta tal cual (contrato H7).
+ * Con 204, o cualquier respuesta sin cuerpo, no se imprime nada (H5).
  */
 function reenviarAPython(string $metodo, string $ruta): void
 {
-    responderError(500, 'Error interno del servidor');
+    $cuerpoEntrante = file_get_contents('php://input');
+
+    [$estado, $cuerpo] = (new PythonClient())->forward(
+        $metodo,
+        $ruta,
+        $cuerpoEntrante === false ? null : $cuerpoEntrante
+    );
+
+    responder($estado, $estado === 204 || $cuerpo === '' ? null : $cuerpo);
 }
 
 /**
