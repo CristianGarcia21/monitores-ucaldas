@@ -1,6 +1,389 @@
+/* ==========================================================================
+   Variables
+   ========================================================================== */
+:root {
+    /* Colores */
+    --color-primario: #1f4e79;
+    --color-primario-oscuro: #163a5a;
+    --color-secundario: #e7edf3;
+    --color-secundario-oscuro: #d3dde7;
+    --color-peligro: #b42318;
+    --color-peligro-oscuro: #8f1c13;
+    --color-exito: #1a7f37;
+    --color-exito-fondo: #e6f4ea;
+    --color-error: #b42318;
+    --color-error-fondo: #fdecea;
+    --color-texto: #1f2933;
+    --color-texto-suave: #52606d;
+    --color-borde: #cbd2d9;
+    --color-fondo: #f5f7fa;
+    --color-superficie: #ffffff;
+    --color-fila-alterna: #f0f4f8;
+    --color-foco: #f0b429;
+
+    /* Tipografía */
+    --fuente-base: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --tamano-base: 1rem;
+    --tamano-pequeno: 0.875rem;
+    --tamano-titulo: 1.75rem;
+    --tamano-subtitulo: 1.25rem;
+
+    /* Espaciados */
+    --espacio-xs: 0.25rem;
+    --espacio-s: 0.5rem;
+    --espacio-m: 1rem;
+    --espacio-l: 1.5rem;
+    --espacio-xl: 2rem;
+
+    /* Otros */
+    --radio: 6px;
+    --sombra: 0 1px 3px rgba(15, 23, 42, 0.12);
+    --ancho-maximo: 1080px;
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* El atributo hidden debe ganar aunque la clase defina display */
+[hidden] {
+    display: none !important;
+}
+
 body {
-    font-family: system-ui, sans-serif;
-    max-width: 960px;
-    margin: 2rem auto;
-    padding: 0 1rem;
+    margin: 0;
+    font-family: var(--fuente-base);
+    font-size: var(--tamano-base);
+    line-height: 1.5;
+    color: var(--color-texto);
+    background-color: var(--color-fondo);
+}
+
+h1,
+h2 {
+    margin: 0;
+    line-height: 1.2;
+}
+
+main,
+.encabezado,
+.pie {
+    width: 100%;
+    max-width: var(--ancho-maximo);
+    margin: 0 auto;
+    padding: 0 var(--espacio-m);
+}
+
+/* ==========================================================================
+   Encabezado y pie
+   ========================================================================== */
+.encabezado {
+    padding-top: var(--espacio-xl);
+    padding-bottom: var(--espacio-l);
+}
+
+.encabezado h1 {
+    font-size: var(--tamano-titulo);
+    color: var(--color-primario);
+}
+
+.subtitulo {
+    margin: var(--espacio-xs) 0 var(--espacio-s);
+    color: var(--color-texto-suave);
+}
+
+.estado {
+    display: inline-block;
+    margin: 0;
+    padding: var(--espacio-xs) var(--espacio-s);
+    font-size: var(--tamano-pequeno);
+    color: var(--color-texto-suave);
+    background-color: var(--color-secundario);
+    border-radius: var(--radio);
+}
+
+.pie {
+    padding-top: var(--espacio-l);
+    padding-bottom: var(--espacio-xl);
+    font-size: var(--tamano-pequeno);
+    color: var(--color-texto-suave);
+    text-align: center;
+}
+
+/* ==========================================================================
+   Paneles
+   ========================================================================== */
+.panel {
+    margin-bottom: var(--espacio-l);
+    padding: var(--espacio-l);
+    background-color: var(--color-superficie);
+    border: 1px solid var(--color-borde);
+    border-radius: var(--radio);
+    box-shadow: var(--sombra);
+}
+
+.panel h2 {
+    margin-bottom: var(--espacio-m);
+    font-size: var(--tamano-subtitulo);
+}
+
+/* ==========================================================================
+   Formulario
+   ========================================================================== */
+.formulario {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--espacio-m) var(--espacio-l);
+}
+
+.campo {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espacio-xs);
+    min-width: 0;
+}
+
+label {
+    font-weight: 600;
+    font-size: var(--tamano-pequeno);
+}
+
+input,
+select {
+    width: 100%;
+    padding: var(--espacio-s) var(--espacio-s);
+    font: inherit;
+    color: inherit;
+    background-color: var(--color-superficie);
+    border: 1px solid var(--color-borde);
+    border-radius: var(--radio);
+}
+
+input:hover,
+select:hover {
+    border-color: var(--color-primario);
+}
+
+input:focus-visible,
+select:focus-visible {
+    outline: 3px solid var(--color-foco);
+    outline-offset: 1px;
+    border-color: var(--color-primario);
+}
+
+input:disabled {
+    color: var(--color-texto-suave);
+    background-color: var(--color-secundario);
+    cursor: not-allowed;
+}
+
+.acciones-formulario {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espacio-s);
+}
+
+/* ==========================================================================
+   Botones
+   ========================================================================== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--espacio-s) var(--espacio-m);
+    font: inherit;
+    font-weight: 600;
+    border: 1px solid transparent;
+    border-radius: var(--radio);
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn:focus-visible {
+    outline: 3px solid var(--color-foco);
+    outline-offset: 2px;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-primario {
+    color: #ffffff;
+    background-color: var(--color-primario);
+}
+
+.btn-primario:hover:not(:disabled) {
+    background-color: var(--color-primario-oscuro);
+}
+
+.btn-secundario {
+    color: var(--color-primario);
+    background-color: var(--color-secundario);
+    border-color: var(--color-borde);
+}
+
+.btn-secundario:hover:not(:disabled) {
+    background-color: var(--color-secundario-oscuro);
+}
+
+.btn-peligro {
+    color: #ffffff;
+    background-color: var(--color-peligro);
+}
+
+.btn-peligro:hover:not(:disabled) {
+    background-color: var(--color-peligro-oscuro);
+}
+
+.btn-pequeno {
+    padding: var(--espacio-xs) var(--espacio-s);
+    font-size: var(--tamano-pequeno);
+}
+
+/* ==========================================================================
+   Mensajes
+   ========================================================================== */
+.mensajes:empty {
+    display: none;
+}
+
+.mensajes {
+    margin-bottom: var(--espacio-l);
+    padding: var(--espacio-s) var(--espacio-m);
+    border-left: 4px solid transparent;
+    border-radius: var(--radio);
+}
+
+.mensajes.ok {
+    color: var(--color-exito);
+    background-color: var(--color-exito-fondo);
+    border-left-color: var(--color-exito);
+}
+
+.mensajes.error {
+    color: var(--color-error);
+    background-color: var(--color-error-fondo);
+    border-left-color: var(--color-error);
+}
+
+/* ==========================================================================
+   Buscador
+   ========================================================================== */
+.buscador {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--espacio-s);
+    margin-bottom: var(--espacio-m);
+}
+
+.buscador input {
+    flex: 1 1 12rem;
+    width: auto;
+    min-width: 0;
+}
+
+/* ==========================================================================
+   Tabla
+   ========================================================================== */
+.tabla-contenedor {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid var(--color-borde);
+    border-radius: var(--radio);
+}
+
+.tabla {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.tabla th,
+.tabla td {
+    padding: var(--espacio-s) var(--espacio-m);
+    text-align: left;
+    border-bottom: 1px solid var(--color-borde);
+}
+
+.tabla thead th {
+    color: #ffffff;
+    background-color: var(--color-primario);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.tabla tbody tr:nth-child(even) {
+    background-color: var(--color-fila-alterna);
+}
+
+.tabla tbody tr:hover {
+    background-color: var(--color-secundario-oscuro);
+}
+
+.tabla tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.tabla .acciones {
+    display: flex;
+    gap: var(--espacio-s);
+    white-space: nowrap;
+}
+
+.tabla-vacia {
+    text-align: center !important;
+    color: var(--color-texto-suave);
+    font-style: italic;
+}
+
+/* ==========================================================================
+   Móvil
+   ========================================================================== */
+@media (max-width: 640px) {
+    :root {
+        --tamano-titulo: 1.375rem;
+        --tamano-subtitulo: 1.125rem;
+    }
+
+    .encabezado {
+        padding-top: var(--espacio-l);
+    }
+
+    .panel {
+        padding: var(--espacio-m);
+    }
+
+    .formulario {
+        grid-template-columns: 1fr;
+    }
+
+    .acciones-formulario .btn {
+        flex: 1 1 auto;
+    }
+
+    .buscador label,
+    .buscador input {
+        flex-basis: 100%;
+    }
+
+    .buscador .btn {
+        flex: 1 1 auto;
+    }
+
+    /* En móvil la tabla mantiene sus columnas y se desplaza dentro de su contenedor */
+    .tabla {
+        min-width: 640px;
+    }
+
+    .tabla td {
+        white-space: nowrap;
+    }
 }

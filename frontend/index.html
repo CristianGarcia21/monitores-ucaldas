@@ -7,9 +7,83 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Gestión de Monitores Académicos</h1>
-    <p id="estado">Comprobando conexión con el backend...</p>
-    <!-- TODO: formulario de registro/edición y tabla de monitores -->
+    <header class="encabezado">
+        <h1>Gestión de Monitores Académicos</h1>
+        <p class="subtitulo">Universidad de Caldas</p>
+        <p id="estado" class="estado">Comprobando conexión con el backend...</p>
+    </header>
+
+    <main>
+        <div id="mensajes" class="mensajes" role="status" aria-live="polite"></div>
+
+        <section class="panel" aria-labelledby="titulo-formulario">
+            <h2 id="titulo-formulario">Registrar monitor</h2>
+            <form id="form-monitor" class="formulario">
+                <div class="campo">
+                    <label for="codigo">Código</label>
+                    <input type="text" id="codigo" name="codigo" required maxlength="20"
+                           pattern="[A-Za-z0-9\-]{1,20}" placeholder="M-001" autocomplete="off"
+                           title="Letras, números y guiones (máximo 20 caracteres)">
+                </div>
+                <div class="campo">
+                    <label for="nombre">Nombre completo</label>
+                    <input type="text" id="nombre" name="nombre" required minlength="3" maxlength="150"
+                           placeholder="Ana María López" autocomplete="off">
+                </div>
+                <div class="campo">
+                    <label for="correo">Correo electrónico</label>
+                    <input type="email" id="correo" name="correo" required maxlength="150"
+                           placeholder="ana.lopez@ucaldas.edu.co" autocomplete="off">
+                </div>
+                <div class="campo">
+                    <label for="materia">Materia</label>
+                    <select id="materia" name="materia_id" required>
+                        <option value="">Seleccione una materia</option>
+                    </select>
+                </div>
+                <div class="acciones-formulario">
+                    <button type="submit" id="btn-guardar" class="btn btn-primario">Guardar</button>
+                    <button type="button" id="btn-cancelar" class="btn btn-secundario" hidden>Cancelar edición</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel" aria-labelledby="titulo-listado">
+            <h2 id="titulo-listado">Monitores registrados</h2>
+
+            <form id="form-busqueda" class="buscador" role="search">
+                <label for="buscar-codigo">Buscar por código</label>
+                <input type="search" id="buscar-codigo" name="buscar-codigo" maxlength="20"
+                       placeholder="M-001" autocomplete="off">
+                <button type="submit" id="btn-buscar" class="btn btn-primario">Buscar</button>
+                <button type="button" id="btn-ver-todos" class="btn btn-secundario">Ver todos</button>
+            </form>
+
+            <div class="tabla-contenedor">
+                <table id="tabla-monitores" class="tabla">
+                    <thead>
+                        <tr>
+                            <th scope="col">Código</th>
+                            <th scope="col">Nombre</th>
+                            <th scope="col">Correo</th>
+                            <th scope="col">Materia</th>
+                            <th scope="col">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpo-tabla">
+                        <tr>
+                            <td colspan="5" class="tabla-vacia">No hay monitores registrados</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <footer class="pie">
+        <p>Ingeniería de Software III · 2026-2</p>
+    </footer>
+
     <script src="app.js"></script>
 </body>
 </html>
