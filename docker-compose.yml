@@ -1,10 +1,14 @@
 # Orquestación global: levanta toda la arquitectura con `docker compose up --build`
 # Flujo: frontend (nginx) -> java-controller -> php-service -> python-service -> database
+#
+# Cada servicio tiene un healthcheck sobre su propio /health (contrato §11, T3) y solo arranca
+# cuando el servicio del que depende está sano: database -> python -> php -> java -> frontend.
 
 services:
   database:
     image: postgres:16-alpine
     container_name: monitores-db
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-monitores}
       POSTGRES_USER: ${POSTGRES_USER:-monitores}
@@ -23,6 +27,7 @@ services:
   python-service:
     build: ./python-service
     container_name: monitores-python
+    restart: unless-stopped
     environment:
       DB_HOST: database
       DB_PORT: 5432
@@ -34,34 +39,68 @@ services:
     depends_on:
       database:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8083/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
 
   php-service:
     build: ./php-service
     container_name: monitores-php
+    restart: unless-stopped
     environment:
       PYTHON_SERVICE_URL: http://python-service:8083
     ports:
       - "${PHP_PORT:-8082}:8082"
     depends_on:
-      - python-service
+      python-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://localhost:8082/health') ? 0 : 1);"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
 
   java-controller:
     build: ./java-controller
     container_name: monitores-java
+    restart: unless-stopped
     environment:
       PHP_SERVICE_URL: http://php-service:8082
     ports:
       - "${JAVA_PORT:-8081}:8081"
     depends_on:
-      - php-service
+      php-service:
+        condition: service_healthy
+    healthcheck:
+      # La imagen JRE no trae curl ni wget: se comprueba que el puerto acepte conexiones
+      test: ["CMD", "bash", "-c", "</dev/tcp/localhost/8081"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      # Spring Boot tarda en arrancar: los fallos de los primeros 40 s no cuentan
+      start_period: 40s
 
   frontend:
     build: ./frontend
     container_name: monitores-frontend
+    restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-8080}:80"
     depends_on:
-      - java-controller
+      java-controller:
+        condition: service_healthy
+    healthcheck:
+      # 127.0.0.1 y no localhost: en Alpine localhost resuelve primero a ::1 (IPv6), nginx solo
+      # escucha en IPv4 (listen 80) y el wget de busybox no prueba la otra dirección
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
 
 volumes:
   db-data:
