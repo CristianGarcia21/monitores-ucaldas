@@ -255,11 +255,16 @@ input:disabled {
     display: none;
 }
 
+/* Fijo arriba al desplazarse: así el resultado de buscar/guardar/eliminar siempre se ve */
 .mensajes {
+    position: sticky;
+    top: var(--espacio-s);
+    z-index: 10;
     margin-bottom: var(--espacio-l);
     padding: var(--espacio-s) var(--espacio-m);
     border-left: 4px solid transparent;
     border-radius: var(--radio);
+    box-shadow: var(--sombra);
 }
 
 .mensajes.ok {
