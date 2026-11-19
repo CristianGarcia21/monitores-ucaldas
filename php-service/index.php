@@ -1,22 +1,121 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * Servicio PHP - intermediario entre Java y Python.
  *
- * Esqueleto inicial: solo expone /health.
- * Implementar el reenvío de los endpoints definidos en docs/api-contract.md (sección PHP).
+ * Decide qué hacer según el método y la ruta (docs/api-contract.md, sección PHP):
+ *   GET /materias · GET|POST /monitores · GET|PUT|DELETE /monitores/{codigo} · GET /health
+ * Cualquier otra ruta responde 404 (E13) y un método no soportado en una ruta válida, 405 (E14).
  */
 
-header('Content-Type: application/json; charset=utf-8');
+const SERVICIO = 'php-service';
 
-$pythonUrl = getenv('PYTHON_SERVICE_URL') ?: 'http://localhost:8083';
-$method = $_SERVER['REQUEST_METHOD'];
-$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+/** Resultados posibles de resolverRuta(). */
+const RUTA_ENCONTRADA = 'encontrada';
+const RUTA_NO_ENCONTRADA = 'no_encontrada';
+const METODO_NO_PERMITIDO = 'metodo_no_permitido';
 
-if ($path === '/health') {
-    echo json_encode(['service' => 'php-service', 'status' => 'ok']);
-    exit;
+/**
+ * Tabla de rutas permitidas: patrón de la ruta => métodos HTTP aceptados.
+ * Sin barra final: "/monitores/" no coincide con ningún patrón (regla H1).
+ *
+ * @return array<string, list<string>>
+ */
+function obtenerTablaRutas(): array
+{
+    return [
+        '#^/materias$#D' => ['GET'],
+        '#^/monitores$#D' => ['GET', 'POST'],
+        '#^/monitores/([^/]+)$#D' => ['GET', 'PUT', 'DELETE'],
+    ];
 }
 
-// TODO: reenviar /materias y /monitores[/{codigo}] a $pythonUrl con cURL
-http_response_code(404);
-echo json_encode(['error' => 'Ruta no encontrada']);
+/**
+ * Busca la ruta en la tabla y valida el método.
+ *
+ * @return array{estado: string, codigo: ?string}
+ */
+function resolverRuta(string $metodo, string $ruta): array
+{
+    foreach (obtenerTablaRutas() as $patron => $metodosPermitidos) {
+        if (preg_match($patron, $ruta, $coincidencias) !== 1) {
+            continue;
+        }
+
+        if (!in_array($metodo, $metodosPermitidos, true)) {
+            return ['estado' => METODO_NO_PERMITIDO, 'codigo' => null];
+        }
+
+        return ['estado' => RUTA_ENCONTRADA, 'codigo' => $coincidencias[1] ?? null];
+    }
+
+    return ['estado' => RUTA_NO_ENCONTRADA, 'codigo' => null];
+}
+
+/**
+ * Envía la respuesta JSON. Con cuerpo nulo (204) no se imprime nada.
+ */
+function responder(int $estado, ?string $cuerpo): void
+{
+    http_response_code($estado);
+
+    if ($cuerpo === null) {
+        return;
+    }
+
+    header('Content-Type: application/json; charset=utf-8');
+    echo $cuerpo;
+}
+
+/**
+ * Respuesta de error con el formato único del contrato: {"error": "<mensaje>"}.
+ */
+function responderError(int $estado, string $mensaje): void
+{
+    responder($estado, json_encode(['error' => $mensaje], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+}
+
+/**
+ * Manejador de las rutas del CRUD. Se conecta con PythonClient en la tarea P4 (#23).
+ */
+function reenviarAPython(string $metodo, string $ruta): void
+{
+    responderError(500, 'Error interno del servidor');
+}
+
+/**
+ * Registra una línea por petición: [php-service] MÉTODO RUTA -> STATUS (ms) (contrato T2).
+ */
+function registrarPeticion(string $metodo, string $ruta, float $inicio): void
+{
+    $milisegundos = (int) round((microtime(true) - $inicio) * 1000);
+    $estado = http_response_code();
+    error_log(sprintf('[%s] %s %s -> %d (%d ms)', SERVICIO, $metodo, $ruta, $estado === false ? 200 : $estado, $milisegundos));
+}
+
+function manejarPeticion(): void
+{
+    $inicio = microtime(true);
+    $metodo = $_SERVER['REQUEST_METHOD'];
+    $ruta = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    $ruta = is_string($ruta) ? $ruta : '';
+
+    register_shutdown_function('registrarPeticion', $metodo, $ruta, $inicio);
+
+    if ($ruta === '/health') {
+        responder(200, json_encode(['service' => SERVICIO, 'status' => 'ok']));
+        return;
+    }
+
+    $resultado = resolverRuta($metodo, $ruta);
+
+    match ($resultado['estado']) {
+        RUTA_ENCONTRADA => reenviarAPython($metodo, $ruta),
+        METODO_NO_PERMITIDO => responderError(405, 'Método no permitido'),
+        default => responderError(404, 'Ruta no encontrada'),
+    };
+}
+
+manejarPeticion();
