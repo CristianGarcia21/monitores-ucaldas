@@ -48,6 +48,37 @@ curl -i -X POST http://localhost:8082/monitores -H 'Content-Type: application/js
 curl -i -X DELETE http://localhost:8082/monitores/M-001
 ```
 
+## Ejecutar con Python real (Docker)
+
+Desde la raíz del repositorio:
+
+```bash
+docker compose up --build database python-service php-service
+```
+
+PHP queda en http://localhost:8082 y reenvía a `http://python-service:8083` (`PYTHON_SERVICE_URL`). Los 6 endpoints
+se prueban con los mismos `curl` de arriba, cambiando el mock por la persistencia real. Con Python real, los
+códigos de prueba deben usar el prefijo `DEV-` y borrarse después (o `docker compose down -v`):
+
+```bash
+curl -i http://localhost:8082/materias                                   # 200
+curl -i -X POST http://localhost:8082/monitores -H 'Content-Type: application/json' \
+  -d '{"codigo":"DEV-001","nombre":"Carlos Pérez","correo":"carlos.perez@ucaldas.edu.co","materia_id":2}'   # 201
+curl -i -X POST http://localhost:8082/monitores -H 'Content-Type: application/json' \
+  -d '{"codigo":"DEV-001","nombre":"Carlos Pérez","correo":"carlos.perez@ucaldas.edu.co","materia_id":2}'   # 409 E12
+curl -i -X POST http://localhost:8082/monitores -H 'Content-Type: application/json' \
+  -d '{"codigo":"DEV-002","nombre":"Carlos Pérez","correo":"carlos.perez@ucaldas.edu.co","materia_id":99}'  # 400 E10
+curl -i http://localhost:8082/monitores/dev-001                          # 200 (Python normaliza el código)
+curl -i http://localhost:8082/monitores/DEV-404                          # 404 E11
+curl -i -X PUT http://localhost:8082/monitores/DEV-001 -H 'Content-Type: application/json' \
+  -d '{"nombre":"Carlos Andrés Pérez","correo":"carlos.perez@ucaldas.edu.co","materia_id":1}'              # 200
+curl -i -X DELETE http://localhost:8082/monitores/DEV-001                # 204 sin cuerpo
+curl -i -X DELETE http://localhost:8082/monitores/DEV-001                # 404 E11
+```
+
+PHP no modifica nada: el estado, el cuerpo y los mensajes de error llegan exactamente como los responde Python.
+Para ver el 502, detener solo Python: `docker compose stop python-service`.
+
 ## Errores propios de PHP
 
 PHP solo genera respuestas propias en estos casos del [catálogo de errores](../docs/api-contract.md#7-catálogo-de-errores);
