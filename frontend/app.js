@@ -7,8 +7,20 @@ const formBusqueda = document.getElementById('form-busqueda');
 const inputBusqueda = document.getElementById('buscar-codigo');
 const btnVerTodos = document.getElementById('btn-ver-todos');
 const cuerpoTabla = document.getElementById('cuerpo-tabla');
+const formMonitor = document.getElementById('form-monitor');
+const tituloFormulario = document.getElementById('titulo-formulario');
+const inputCodigo = document.getElementById('codigo');
+const inputNombre = document.getElementById('nombre');
+const inputCorreo = document.getElementById('correo');
+const btnGuardar = document.getElementById('btn-guardar');
+const btnCancelar = document.getElementById('btn-cancelar');
 
 const COLUMNAS_TABLA = 5;
+// Reglas del contrato §6.2
+const REGEX_CORREO = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const NOMBRE_MIN = 3;
+const NOMBRE_MAX = 150;
+const CORREO_MAX = 150;
 // Formato de código del contrato §6.2 (se acepta minúscula porque el backend normaliza a MAYÚSCULAS)
 const REGEX_CODIGO = /^[A-Za-z0-9-]{1,20}$/;
 const MENSAJE_CODIGO_INVALIDO = 'El código solo puede tener letras, números y guiones (máximo 20 caracteres)';
@@ -16,6 +28,9 @@ const MENSAJE_CODIGO_INVALIDO = 'El código solo puede tener letras, números y 
 // Cada carga de la tabla recibe un número; solo se pinta la respuesta de la más reciente,
 // para que una respuesta lenta no reemplace el resultado de una acción posterior.
 let ultimaPeticionTabla = 0;
+
+// Código del monitor que se está editando; null = el formulario está en modo registro
+let codigoEnEdicion = null;
 
 /* ==========================================================================
    Mensajes
@@ -164,6 +179,167 @@ async function verTodos() {
     await cargarMonitores();
 }
 
+/* ==========================================================================
+   Formulario: registro (RF1) y edición (RF4)
+   ========================================================================== */
+
+/**
+ * Lee el formulario normalizado como el contrato §6.1 y lo valida en el orden de §6.3.
+ * Devuelve { datos } si es válido o { error, campo } con el mensaje del catálogo §7.
+ */
+function leerFormulario() {
+    const codigo = inputCodigo.value.trim().toUpperCase();
+    const nombre = inputNombre.value.trim().replace(/\s+/g, ' ');
+    const correo = inputCorreo.value.trim().toLowerCase();
+    const materiaId = Number(selectMateria.value);
+
+    if (codigoEnEdicion === null) {
+        if (codigo === '') {
+            return { error: 'El código es obligatorio', campo: inputCodigo };
+        }
+        if (!REGEX_CODIGO.test(codigo)) {
+            return { error: MENSAJE_CODIGO_INVALIDO, campo: inputCodigo };
+        }
+    }
+    if (nombre === '') {
+        return { error: 'El nombre es obligatorio', campo: inputNombre };
+    }
+    if (nombre.length < NOMBRE_MIN || nombre.length > NOMBRE_MAX) {
+        return { error: 'El nombre debe tener entre 3 y 150 caracteres', campo: inputNombre };
+    }
+    if (correo === '') {
+        return { error: 'El correo es obligatorio', campo: inputCorreo };
+    }
+    if (!REGEX_CORREO.test(correo)) {
+        return { error: 'El correo no es válido', campo: inputCorreo };
+    }
+    if (correo.length > CORREO_MAX) {
+        return { error: 'El correo debe tener máximo 150 caracteres', campo: inputCorreo };
+    }
+    if (!Number.isInteger(materiaId) || materiaId <= 0) {
+        return { error: 'La materia es obligatoria', campo: selectMateria };
+    }
+
+    return { datos: { codigo, nombre, correo, materia_id: materiaId } };
+}
+
+function limpiarErroresCampos() {
+    for (const campo of [inputCodigo, inputNombre, inputCorreo, selectMateria]) {
+        campo.removeAttribute('aria-invalid');
+    }
+}
+
+/** Vuelve al modo registro con el formulario vacío. */
+function salirDeEdicion() {
+    codigoEnEdicion = null;
+    formMonitor.reset();
+    limpiarErroresCampos();
+    inputCodigo.disabled = false;
+    tituloFormulario.textContent = 'Registrar monitor';
+    btnGuardar.textContent = 'Guardar';
+    btnCancelar.hidden = true;
+}
+
+/** Carga un monitor en el formulario para editarlo (el código no se puede cambiar). */
+function entrarEnEdicion(monitor) {
+    limpiarErroresCampos();
+    codigoEnEdicion = monitor.codigo;
+    inputCodigo.value = monitor.codigo;
+    inputCodigo.disabled = true;
+    inputNombre.value = monitor.nombre;
+    inputCorreo.value = monitor.correo;
+    selectMateria.value = String(monitor.materia_id);
+    tituloFormulario.textContent = `Editar monitor ${monitor.codigo}`;
+    btnGuardar.textContent = 'Guardar cambios';
+    btnCancelar.hidden = false;
+    formMonitor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    inputNombre.focus({ preventScroll: true });
+}
+
+async function guardarMonitor(evento) {
+    // Sin esto el navegador envía el formulario por GET y recarga la página
+    evento.preventDefault();
+    limpiarErroresCampos();
+
+    const validacion = leerFormulario();
+    if (validacion.error) {
+        mostrarMensaje(validacion.error, 'error');
+        validacion.campo.setAttribute('aria-invalid', 'true');
+        validacion.campo.focus();
+        return;
+    }
+
+    const { datos } = validacion;
+    const enEdicion = codigoEnEdicion !== null;
+    btnGuardar.disabled = true;
+    try {
+        if (enEdicion) {
+            // En PUT el código va en la ruta, no en el cuerpo (contrato)
+            const cambios = { nombre: datos.nombre, correo: datos.correo, materia_id: datos.materia_id };
+            const monitor = await actualizarMonitor(codigoEnEdicion, cambios);
+            mostrarMensaje(`Monitor ${monitor.codigo} actualizado correctamente`, 'ok');
+        } else {
+            const monitor = await crearMonitor(datos);
+            mostrarMensaje(`Monitor ${monitor.codigo} registrado correctamente`, 'ok');
+        }
+        salirDeEdicion();
+        inputBusqueda.value = '';
+        await cargarMonitores();
+    } catch (error) {
+        // Errores 400/404/409 del backend tal como llegan
+        mostrarMensaje(error.message, 'error');
+    } finally {
+        btnGuardar.disabled = false;
+    }
+}
+
+/** Botón Editar de una fila: trae el monitor actualizado del backend y lo carga en el formulario. */
+async function editarMonitor(codigo) {
+    try {
+        const monitor = await obtenerMonitor(codigo);
+        limpiarMensaje();
+        entrarEnEdicion(monitor);
+    } catch (error) {
+        mostrarMensaje(error.message, 'error');
+    }
+}
+
+function cancelarEdicion() {
+    salirDeEdicion();
+    limpiarMensaje();
+}
+
+/** Un solo listener para los botones de todas las filas (la tabla se vuelve a pintar a menudo). */
+function manejarAccionTabla(evento) {
+    const boton = evento.target.closest('button[data-accion]');
+    if (!boton) {
+        return;
+    }
+    if (boton.dataset.accion === 'editar') {
+        editarMonitor(boton.dataset.codigo);
+    }
+}
+
+/** Deja en un texto solo los caracteres válidos para un código (§6.2), en MAYÚSCULAS. */
+function limpiarCodigo(texto) {
+    return texto.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+}
+
+/**
+ * Al escribir o pegar en el código: pasa a MAYÚSCULAS y descarta lo que no sea letra
+ * (sin tildes ni ñ), número o guion. El cursor se queda donde estaba.
+ */
+function filtrarCodigo() {
+    const valor = inputCodigo.value;
+    const limpio = limpiarCodigo(valor);
+    if (limpio === valor) {
+        return;
+    }
+    const cursor = limpiarCodigo(valor.slice(0, inputCodigo.selectionStart)).length;
+    inputCodigo.value = limpio;
+    inputCodigo.setSelectionRange(cursor, cursor);
+}
+
 async function comprobarBackend() {
     try {
         const salud = await consultarSalud();
@@ -179,6 +355,10 @@ async function comprobarBackend() {
 
 formBusqueda.addEventListener('submit', buscarMonitor);
 btnVerTodos.addEventListener('click', verTodos);
+formMonitor.addEventListener('submit', guardarMonitor);
+btnCancelar.addEventListener('click', cancelarEdicion);
+inputCodigo.addEventListener('input', filtrarCodigo);
+cuerpoTabla.addEventListener('click', manejarAccionTabla);
 
 comprobarBackend();
 cargarMaterias();

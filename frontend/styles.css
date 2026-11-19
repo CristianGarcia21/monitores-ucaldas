@@ -176,6 +176,17 @@ select:focus-visible {
     border-color: var(--color-primario);
 }
 
+/* Campo marcado por app.js cuando no pasa la validación */
+input[aria-invalid="true"],
+select[aria-invalid="true"] {
+    border-color: var(--color-error);
+}
+
+.ayuda {
+    font-size: var(--tamano-pequeno);
+    color: var(--color-texto-suave);
+}
+
 input:disabled {
     color: var(--color-texto-suave);
     background-color: var(--color-secundario);
