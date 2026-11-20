@@ -41,6 +41,21 @@ docker compose up --build database python-service   # solo persistencia
 docker compose up --build php-service                # PHP (+ sus dependencias)
 ```
 
+## Scripts de utilidad
+
+En `scripts/`, en versión bash (Linux/Mac y Git Bash) y PowerShell (Windows). Se pueden ejecutar
+desde cualquier carpeta del repo.
+
+| Script | Qué hace | bash | PowerShell |
+|--------|----------|------|------------|
+| `reset-db` | Detiene todo, **borra los datos** de la BD (`docker compose down -v`) y levanta solo la BD otra vez, ejecutando `database/init.sql` desde cero. Úsalo tras cambiar `init.sql` o para limpiar datos de prueba. | `./scripts/reset-db.sh` | `.\scripts\reset-db.ps1` |
+| `logs` | Muestra en vivo los logs de un servicio (`docker compose logs -f`). Sin argumento o con un nombre inválido, lista los servicios. `Ctrl+C` para salir. | `./scripts/logs.sh php-service` | `.\scripts\logs.ps1 php-service` |
+
+Servicios: `database`, `python-service`, `php-service`, `java-controller`, `frontend`.
+
+Si PowerShell bloquea el script por la política de ejecución, ejecútalo así:
+`powershell -ExecutionPolicy Bypass -File .\scripts\reset-db.ps1`
+
 ## Flujo de trabajo del equipo
 
 1. Cada integrante tiene un **milestone con su nombre** (pestaña *Issues → Milestones*) con su issue principal y todas sus sub-issues.
