@@ -2,11 +2,11 @@
 // Todo el frontend usa estas funciones; ningún otro archivo llama a fetch directamente.
 // Rutas, cuerpos y mensajes según docs/api-contract.md (§8 endpoints, §7 errores).
 //
-// Con USE_MOCK = true las funciones responden con datos en memoria que imitan al backend
-// (contrato §13), para poder trabajar sin Java, PHP ni Python. Para la integración final (F7)
-// basta con poner USE_MOCK = false.
+// Con USE_MOCK = false (integración, F7) las funciones llaman al backend real por /api.
+// Con USE_MOCK = true responden con datos en memoria que imitan al backend (contrato §13),
+// útil para trabajar en la interfaz sin levantar Java, PHP ni Python.
 
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 const API_BASE = '/api';
 const MENSAJE_SIN_CONEXION = 'No se pudo conectar con el servidor';
