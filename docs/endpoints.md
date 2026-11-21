@@ -71,12 +71,12 @@ Normaliza y valida el cuerpo. Si algo falla, responde 400 **sin llamar a PHP**. 
 | Método | URL completa | Qué hace Java | Códigos propios | Códigos propagados |
 |--------|--------------|---------------|-----------------|--------------------|
 | `GET` | `http://localhost:8081/health` | Responde por sí mismo | 200 | — |
-| `GET` | `http://localhost:8081/materias` | Reenvía | 502, 500 | 200, 502, 503 |
-| `GET` | `http://localhost:8081/monitores` | Reenvía | 502, 500 | 200, 502, 503 |
-| `GET` | `http://localhost:8081/monitores/{codigo}` | Normaliza el código y reenvía | 502, 500 | 200, 404, 502, 503 |
-| `POST` | `http://localhost:8081/monitores` | Normaliza y valida (E01–E09) y reenvía | 400, 502, 500 | 201, 400, 409, 502, 503 |
-| `PUT` | `http://localhost:8081/monitores/{codigo}` | Normaliza y valida (E01, E04–E09) y reenvía | 400, 502, 500 | 200, 400, 404, 502, 503 |
-| `DELETE` | `http://localhost:8081/monitores/{codigo}` | Normaliza el código y reenvía | 502, 500 | 204, 404, 502, 503 |
+| `GET` | `http://localhost:8081/materias` | Reenvía | 502, 500 | 200, 502, 503, 500 |
+| `GET` | `http://localhost:8081/monitores` | Reenvía | 502, 500 | 200, 502, 503, 500 |
+| `GET` | `http://localhost:8081/monitores/{codigo}` | Normaliza el código y reenvía | 502, 500 | 200, 404, 502, 503, 500 |
+| `POST` | `http://localhost:8081/monitores` | Normaliza y valida (E01–E09) y reenvía | 400, 502, 500 | 201, 400, 409, 502, 503, 500 |
+| `PUT` | `http://localhost:8081/monitores/{codigo}` | Normaliza y valida (E01, E04–E09) y reenvía | 400, 502, 500 | 200, 400, 404, 502, 503, 500 |
+| `DELETE` | `http://localhost:8081/monitores/{codigo}` | Normaliza el código y reenvía | 502, 500 | 204, 404, 502, 503, 500 |
 
 - **Errores que genera Java:** E01–E09 (validación), E13 (ruta), E14 (método), E15 (PHP no disponible)
   y E18.
@@ -90,12 +90,12 @@ Intermediario. Valida ruta, método y que el cuerpo sea un objeto JSON. Reenvía
 | Método | URL completa | Qué hace PHP | Códigos propios | Códigos propagados |
 |--------|--------------|--------------|-----------------|--------------------|
 | `GET` | `http://localhost:8082/health` | Responde por sí mismo | 200 | — |
-| `GET` | `http://localhost:8082/materias` | Reenvía | 502, 500 | 200, 503 |
-| `GET` | `http://localhost:8082/monitores` | Reenvía | 502, 500 | 200, 503 |
-| `GET` | `http://localhost:8082/monitores/{codigo}` | Reenvía | 502, 500 | 200, 404, 503 |
-| `POST` | `http://localhost:8082/monitores` | Comprueba que el cuerpo sea objeto JSON y reenvía | 400 (E01), 502, 500 | 201, 400, 409, 503 |
-| `PUT` | `http://localhost:8082/monitores/{codigo}` | Comprueba que el cuerpo sea objeto JSON y reenvía | 400 (E01), 502, 500 | 200, 400, 404, 503 |
-| `DELETE` | `http://localhost:8082/monitores/{codigo}` | Reenvía | 502, 500 | 204, 404, 503 |
+| `GET` | `http://localhost:8082/materias` | Reenvía | 502, 500 | 200, 503, 500 |
+| `GET` | `http://localhost:8082/monitores` | Reenvía | 502, 500 | 200, 503, 500 |
+| `GET` | `http://localhost:8082/monitores/{codigo}` | Reenvía | 502, 500 | 200, 404, 503, 500 |
+| `POST` | `http://localhost:8082/monitores` | Comprueba que el cuerpo sea objeto JSON y reenvía | 400 (E01), 502, 500 | 201, 400, 409, 503, 500 |
+| `PUT` | `http://localhost:8082/monitores/{codigo}` | Comprueba que el cuerpo sea objeto JSON y reenvía | 400 (E01), 502, 500 | 200, 400, 404, 503, 500 |
+| `DELETE` | `http://localhost:8082/monitores/{codigo}` | Reenvía | 502, 500 | 204, 404, 503, 500 |
 
 - **Errores que genera PHP:** E01, E13, E14, E16 (Python no disponible) y E18.
 - **Implementación:** `index.php` (tabla de rutas `obtenerTablaRutas()`) y `PythonClient.php`.
@@ -236,8 +236,6 @@ Content-Type: application/json
 | `materia_id: 99` | `400 {"error": "La materia indicada no existe"}` | Python, propagado por PHP y Java |
 | Código repetido | `409 {"error": "Ya existe un monitor con el código DEV-001"}` | Python, propagado |
 
-> El ejemplo del contrato (§8.5) usa `M-002`, que ya existe en los datos semilla: contra la base real
-> responde 409. Por eso aquí y en la colección se usa `DEV-001` (prefijo de pruebas manuales, §12).
 
 ### 3.6 `PUT /monitores/{codigo}` (RF4)
 
