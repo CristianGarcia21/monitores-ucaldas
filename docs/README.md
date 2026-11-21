@@ -14,31 +14,30 @@ mediante servicios REST*.
 | 4. Endpoints | [endpoints.md](endpoints.md) · [colección Postman](postman/monitores.postman_collection.json) |
 | 5. Ventajas y dificultades | [ventajas-dificultades.md](ventajas-dificultades.md) |
 | Despliegue en tres equipos | [despliegue.md](despliegue.md) (diagrama de despliegue) · [guía paso a paso](../despliegue/README.md) |
-| **Documento final** (formato Universidad de Caldas) | [documento-final-ucaldas.docx](documento-final-ucaldas.docx) · [PDF](documento-final-ucaldas.pdf) |
+| **Documentación general** (todo lo anterior, formato Universidad de Caldas) | [PDF](documentacion-general.pdf) · [Word](documentacion-general.docx) |
+| **Manual de usuario** (formato Universidad de Caldas) | [PDF](manual-usuario.pdf) · [Word](manual-usuario.docx) |
 
 Los diagramas Mermaid se ven directamente en GitHub. Los PNG de `img/` se generan desde esos mismos
 bloques.
 
-## Manuales
+## Documentos para entregar
 
-- [Manual técnico (PDF)](manual-tecnico.pdf) · [fuente LaTeX](manual-tecnico.tex)
-- [Manual de usuario (PDF)](manual-usuario.pdf) · [fuente LaTeX](manual-usuario.tex)
-- [Diagrama de arquitectura (PDF)](arquitectura.pdf)
+- **[Documentación general](documentacion-general.pdf)** ([Word](documentacion-general.docx)): un solo documento
+  con todo lo que pide el enunciado:
+  - arquitectura y patrones;
+  - diagrama de secuencia;
+  - implementación del CRUD, con instalación, operación y capturas;
+  - endpoints;
+  - ventajas y dificultades;
+  - despliegue en tres equipos;
+  - pruebas.
+- **[Manual de usuario](manual-usuario.pdf)** ([Word](manual-usuario.docx)): cómo usar la aplicación desde el
+  navegador, paso a paso y con capturas.
+
+Los dos usan la plantilla oficial de trabajos de la Universidad de Caldas. Los diagramas que incluyen son los
+PNG de `img/`, generados desde los bloques Mermaid de los `.md` de esta carpeta.
+
+## Otros
+
+- [Diagrama de arquitectura (PDF)](arquitectura.pdf): vista gráfica de los componentes y su flujo.
 - [Contrato de API](api-contract.md)
-
-## Compilar los manuales
-
-Se requiere una distribución LaTeX con `pdflatex`. Desde esta carpeta, ejecutar dos veces cada comando para actualizar el índice:
-
-```bash
-pdflatex -interaction=nonstopmode -halt-on-error manual-tecnico.tex
-pdflatex -interaction=nonstopmode -halt-on-error manual-tecnico.tex
-pdflatex -interaction=nonstopmode -halt-on-error manual-usuario.tex
-pdflatex -interaction=nonstopmode -halt-on-error manual-usuario.tex
-```
-
-El preámbulo compartido está en `preambulo-manuales.tex`. Los PDF se generan junto a las fuentes `.tex`.
-
-## Alcance del diagrama
-
-El diagrama presenta el flujo principal entre navegador, frontend/nginx, Java, PHP, Python y PostgreSQL. No detalla rutas CRUD ni utilidades de operación para mantener legible la vista general.

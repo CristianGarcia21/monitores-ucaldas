@@ -5,11 +5,11 @@ la **capa intermediaria** (PHP) en otro y la **capa de lógica y datos** en un t
 a paso están en [despliegue/README.md](../despliegue/README.md).
 
 ```mermaid
-flowchart LR
+flowchart TB
     U(["Usuario<br/>(navegador en cualquier equipo de la red)"])
 
     subgraph PC1["PC1 · Presentación"]
-        direction TB
+        direction LR
         NG["<b>frontend</b><br/>nginx + HTML/CSS/JS<br/>:8080 (red)"]
         J["<b>java-controller</b><br/>Java 21 · Spring Boot<br/>:8081 (solo local)"]
         NG -- "HTTP/JSON<br/>/api quitado" --> J
@@ -20,7 +20,7 @@ flowchart LR
     end
 
     subgraph PC3["PC3 · Lógica y datos"]
-        direction TB
+        direction LR
         PY["<b>python-service</b><br/>Python 3.12 · FastAPI<br/>:8083 (red)"]
         DB[("<b>database</b><br/>PostgreSQL 16<br/>:5432 (solo local)")]
         PY -- "SQL parametrizado" --> DB

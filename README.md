@@ -200,10 +200,11 @@ Ejecútalos así: `powershell -ExecutionPolicy Bypass -File .\scripts\smoke-test
 
 ## Documentación
 
-- **[docs/](docs/README.md)**: índice de documentación, manuales LaTeX/PDF y diagrama de arquitectura.
-- **[Manual técnico (PDF)](docs/manual-tecnico.pdf)** · [fuente LaTeX](docs/manual-tecnico.tex): arquitectura, despliegue, pruebas y diagnóstico.
-- **[Manual de usuario (PDF)](docs/manual-usuario.pdf)** · [fuente LaTeX](docs/manual-usuario.tex): guía para operar la interfaz.
-- **[Diagrama de arquitectura (PDF)](docs/arquitectura.pdf)**: vista de los componentes y su flujo.
+- **[docs/](docs/README.md)**: índice de la documentación y entregables del taller.
+- **[Documentación general (PDF)](docs/documentacion-general.pdf)**: todo lo que pide el enunciado en un solo
+  documento con el formato de la Universidad de Caldas: arquitectura, patrones, secuencia, endpoints,
+  ventajas y dificultades, despliegue en tres equipos y pruebas.
+- **[Manual de usuario (PDF)](docs/manual-usuario.pdf)**: guía para usar la aplicación, con capturas.
 - **[despliegue/README.md](despliegue/README.md)**: cómo correr el sistema repartido en tres equipos.
 - **[docs/api-contract.md](docs/api-contract.md)**: contrato del sistema: rutas, JSON, validaciones, mensajes de
   error exactos, esquema de la base de datos y responsabilidades de cada capa.
