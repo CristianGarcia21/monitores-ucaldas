@@ -1,0 +1,27 @@
+# PC2 · Capa intermediaria: servicio PHP.
+#
+# Recibe las peticiones del Java del PC1 en el puerto 8082 y las reenvía sin modificar al Python del
+# PC3 (PYTHON_SERVICE_URL, en despliegue/.env).
+#
+# Uso, desde la raíz del repo:
+#   docker compose -f despliegue/pc2-intermediario.yml up --build -d
+# Guía completa: despliegue/README.md
+
+name: monitores-pc2-intermediario
+
+services:
+  php-service:
+    build: ../php-service
+    container_name: monitores-php
+    restart: unless-stopped
+    environment:
+      PYTHON_SERVICE_URL: ${PYTHON_SERVICE_URL:?Falta PYTHON_SERVICE_URL en despliegue/.env (ej. http://192.168.1.30:8083)}
+    ports:
+      # El Java del PC1 llama a este puerto: se expone a la red
+      - "${PHP_PORT:-8082}:8082"
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://localhost:8082/health') ? 0 : 1);"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s

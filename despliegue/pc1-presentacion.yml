@@ -1,0 +1,48 @@
+# PC1 · Capa de presentación: interfaz (nginx + HTML/CSS/JS) y controlador Java.
+#
+# El navegador entra por http://<IP-PC1>:8080. nginx reenvía /api/* al Java de este mismo equipo, y
+# Java envía las peticiones al PHP del PC2 (PHP_SERVICE_URL, en despliegue/.env).
+#
+# Uso, desde la raíz del repo:
+#   docker compose -f despliegue/pc1-presentacion.yml up --build -d
+# Guía completa: despliegue/README.md
+
+name: monitores-pc1-presentacion
+
+services:
+  java-controller:
+    build: ../java-controller
+    container_name: monitores-java
+    restart: unless-stopped
+    environment:
+      PHP_SERVICE_URL: ${PHP_SERVICE_URL:?Falta PHP_SERVICE_URL en despliegue/.env (ej. http://192.168.1.20:8082)}
+    ports:
+      # Solo nginx (en este equipo) llama a Java: no se expone a la red
+      - "127.0.0.1:${JAVA_PORT:-8081}:8081"
+    healthcheck:
+      # La imagen JRE no trae curl ni wget: se comprueba que el puerto acepte conexiones
+      test: ["CMD", "bash", "-c", "</dev/tcp/localhost/8081"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 40s
+
+  frontend:
+    build: ../frontend
+    container_name: monitores-frontend
+    restart: unless-stopped
+    environment:
+      JAVA_SERVICE_URL: http://java-controller:8081
+    ports:
+      # Única puerta de entrada para los usuarios: se expone a la red
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      java-controller:
+        condition: service_healthy
+    healthcheck:
+      # 127.0.0.1 y no localhost: en Alpine localhost resuelve primero a ::1 (IPv6)
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
