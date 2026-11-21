@@ -1,0 +1,97 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[provide=*,spanish]{babel}
+\usepackage[a4paper,margin=2.35cm,headheight=15pt]{geometry}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{xurl}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{fancyhdr}
+\usepackage{parskip}
+\usepackage{needspace}
+
+\definecolor{ucaldasink}{HTML}{2D3142}
+\definecolor{ucaldasslate}{HTML}{4F5D75}
+\definecolor{ucaldasaccent}{HTML}{BF4520}
+\definecolor{ucaldasrule}{HTML}{D8DADF}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=ucaldasink,
+  urlcolor=ucaldasaccent,
+  citecolor=ucaldasink,
+  pdftitle={Gestión de Monitores Académicos},
+  pdfauthor={Equipo del proyecto}
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+\setlist[itemize]{leftmargin=1.5em,itemsep=0.2em,topsep=0.25em}
+\setlist[enumerate]{leftmargin=1.7em,itemsep=0.25em,topsep=0.25em}
+\renewcommand{\arraystretch}{1.2}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+\lstdefinestyle{comandos}{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  breakatwhitespace=false,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  frame=single,
+  rulecolor=\color{ucaldasrule},
+  backgroundcolor=\color{black!3},
+  xleftmargin=0.4em,
+  xrightmargin=0.4em,
+  aboveskip=0.6em,
+  belowskip=0.6em,
+  literate=
+    {á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+    {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+    {ñ}{{\~n}}1 {Ñ}{{\~N}}1 {ü}{{\"u}}1 {Ü}{{\"U}}1
+}
+\lstset{style=comandos}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Gestión de Monitores Académicos}
+\fancyhead[R]{\small Universidad de Caldas}
+\fancyfoot[L]{\small Ingeniería de Software III · 2026-2}
+\fancyfoot[R]{\small Página \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+\newcommand{\portada}[2]{%
+  \hypersetup{pageanchor=false}
+  \begin{titlepage}
+    \centering
+    \vspace*{2.5cm}
+    {\large Universidad de Caldas\par}
+    \vspace{0.5cm}
+    {\large Ingeniería de Software III · 2026-2\par}
+    \vspace{2.5cm}
+    {\Huge\bfseries Gestión de Monitores Académicos\par}
+    \vspace{0.7cm}
+    {\LARGE #1\par}
+    \vspace{0.7cm}
+    {\large #2\par}
+    \vfill
+    {\large Versión 1.0 · 20 de noviembre de 2026\par}
+    \vspace{0.4cm}
+    {\normalsize Equipo del proyecto\par}
+  \end{titlepage}
+  \hypersetup{pageanchor=true}
+  \pagenumbering{roman}
+}
+
+\newcommand{\codigo}[1]{\texttt{#1}}
+\newcommand{\archivo}[1]{\path{#1}}

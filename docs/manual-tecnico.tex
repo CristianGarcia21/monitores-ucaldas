@@ -1,0 +1,239 @@
+\input{preambulo-manuales.tex}
+
+\begin{document}
+
+\portada{Manual técnico}{Arquitectura, operación y mantenimiento}
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+
+\section{Propósito y alcance}
+
+Este manual describe cómo está construido, desplegado y verificado el sistema de Gestión de Monitores Académicos. Está dirigido a quienes desarrollan, integran o mantienen el proyecto. El contrato de API sigue siendo la fuente normativa para rutas, datos, validaciones y errores: \archivo{api-contract.md}.
+
+\textbf{Recorrido rápido}
+\begin{enumerate}
+  \item Levantar los cinco servicios con \codigo{docker compose up -\kern0pt-build -d}.
+  \item Comprobar que todos estén saludables con \codigo{docker compose ps}.
+  \item Ejecutar \codigo{./scripts/smoke-test.sh} contra \codigo{http://localhost:8080/api}.
+\end{enumerate}
+
+\section{Arquitectura}
+
+La aplicación es una arquitectura distribuida, multicapa y heterogénea. Las capas se comunican mediante HTTP y JSON; las operaciones del CRUD pasan por cada componente en el orden indicado. El navegador solo accede al frontend, y únicamente \archivo{python-service} se conecta a PostgreSQL.
+
+\begin{center}
+\textbf{Navegador} $\rightarrow$ \textbf{nginx / frontend} $\rightarrow$ \textbf{Java} $\rightarrow$ \textbf{PHP} $\rightarrow$ \textbf{Python} $\rightarrow$ \textbf{PostgreSQL}
+\end{center}
+
+El diagrama de arquitectura, con detalles de tecnologías y puertos, está en \href{run:arquitectura.pdf}{\archivo{arquitectura.pdf}}.
+
+\begin{tabularx}{\textwidth}{p{0.19\textwidth}p{0.25\textwidth}p{0.13\textwidth}Y}
+\toprule
+\textbf{Componente} & \textbf{Tecnología} & \textbf{Puerto} & \textbf{Responsabilidad} \\
+\midrule
+\codigo{frontend} & HTML, CSS, JavaScript y nginx & 8080 (host) / 80 (contenedor) & Sirve la interfaz y reenvía \codigo{/api/*} a Java, quitando el prefijo \codigo{/api}. \\
+\codigo{java-controller} & Java 21, Spring Boot 3.3 & 8081 & Expone la API, normaliza y valida datos, y propaga las respuestas del servicio PHP. \\
+\codigo{php-service} & PHP 8.3 y cURL & 8082 & Comprueba rutas y JSON, y reenvía las solicitudes sin cambiar el contenido. \\
+\codigo{python-service} & Python 3.12, FastAPI y psycopg & 8083 & Vuelve a validar, aplica reglas de negocio y ejecuta las operaciones de persistencia. \\
+\codigo{database} & PostgreSQL 16 & 5432 & Conserva materias y monitores; el volumen \codigo{db-data} persiste los datos. \\
+\bottomrule
+\end{tabularx}
+
+\subsection{Responsabilidades y límites}
+
+\begin{itemize}
+  \item \textbf{Frontend:} formulario, búsqueda, tabla, confirmación de borrado y presentación de errores. Usa rutas relativas \codigo{/api/...}; no conoce hosts internos ni credenciales.
+  \item \textbf{nginx:} sirve los archivos estáticos y actúa como proxy de mismo origen. No implementa reglas de negocio.
+  \item \textbf{Java:} normaliza y valida campos antes de enviar la petición a PHP. Los errores de validación se responden sin llamar a la siguiente capa.
+  \item \textbf{PHP:} valida método, ruta y sintaxis JSON; entrega a Python método, ruta y cuerpo sin modificarlos.
+  \item \textbf{Python:} valida otra vez aunque Java ya lo haya hecho, verifica existencia y duplicados, maneja transacciones y traduce errores de PostgreSQL al contrato.
+  \item \textbf{PostgreSQL:} refuerza la integridad con claves primarias, foráneas, restricciones \codigo{UNIQUE} y \codigo{CHECK}.
+\end{itemize}
+
+\subsection{Comunicación y ciclo de vida}
+
+Docker Compose crea la red de servicios y controla el orden de inicio mediante \codigo{depends\_on} y comprobaciones de salud: base de datos, Python, PHP, Java y frontend. El estado saludable confirma que el proceso o endpoint responde; no sustituye la prueba completa del flujo CRUD.
+
+Las respuestas del backend regresan por la cadena en sentido inverso. Java y PHP conservan el código HTTP y el cuerpo de la capa siguiente, salvo los errores propios definidos por el contrato. El borrado exitoso responde \codigo{204 No Content}, sin cuerpo.
+
+\section{API y modelo de datos}
+
+\subsection{Operaciones}
+
+\begin{tabularx}{\textwidth}{p{0.14\textwidth}p{0.37\textwidth}p{0.16\textwidth}Y}
+\toprule
+\textbf{Método} & \textbf{Ruta en la API pública} & \textbf{Éxito} & \textbf{Uso} \\
+\midrule
+\codigo{GET} & \codigo{/api/health} & 200 & Estado de Java a través del frontend. Cada servicio también expone su propio \codigo{/health}. \\
+\codigo{GET} & \codigo{/api/materias} & 200 & Lista materias de solo lectura. \\
+\codigo{GET} & \codigo{/api/monitores} & 200 & Lista monitores; sin resultados devuelve \codigo{[]}. \\
+\codigo{GET} & \codigo{/api/monitores/\{codigo\}} & 200 & Consulta un monitor por código. \\
+\codigo{POST} & \codigo{/api/monitores} & 201 & Crea un monitor. \\
+\codigo{PUT} & \codigo{/api/monitores/\{codigo\}} & 200 & Reemplaza los campos editables; no cambia el código. \\
+\codigo{DELETE} & \codigo{/api/monitores/\{codigo\}} & 204 & Elimina el monitor sin cuerpo de respuesta. \\
+\bottomrule
+\end{tabularx}
+
+Las rutas internas vistas por Java, PHP y Python no incluyen el prefijo \codigo{/api}. Las solicitudes de creación y actualización llevan JSON con \codigo{codigo}, \codigo{nombre}, \codigo{correo} y \codigo{materia\_id}; en \codigo{PUT}, el código se toma de la ruta y los otros tres campos son obligatorios. Las respuestas de monitor agregan \codigo{materia\_nombre}.
+
+\subsection{Persistencia}
+
+El esquema se inicializa en \archivo{database/init.sql}. \codigo{materias.id} es la clave referenciada desde \codigo{monitores.materia\_id}; borrar una materia en uso está restringido. El código del monitor es su clave primaria. El correo no es único. Se crea además un índice por \codigo{materia\_id}.
+
+La inicialización automática solo se ejecuta cuando el directorio de datos está vacío. El script carga ocho materias y siete monitores de demostración. El volumen \codigo{db-data} conserva los cambios entre reinicios normales del contenedor.
+
+\section{Validación y manejo de errores}
+
+Java y Python aplican la misma normalización: código sin espacios exteriores y en mayúsculas; nombre sin espacios exteriores y con espacios internos compactados; correo sin espacios exteriores y en minúsculas. La validación responde solo el primer error en un orden determinista.
+
+\begin{tabularx}{\textwidth}{p{0.2\textwidth}Y}
+\toprule
+\textbf{Dato} & \textbf{Regla principal} \\
+\midrule
+Código & Obligatorio al crear; de 1 a 20 caracteres: letras ASCII, números o guion. \\
+Nombre & Obligatorio; entre 3 y 150 caracteres. \\
+Correo & Obligatorio; formato con usuario, arroba y dominio con punto; máximo 150 caracteres. \\
+Materia & Entero positivo que corresponda a una fila existente de \codigo{materias}. \\
+\bottomrule
+\end{tabularx}
+
+Los errores tienen formato \codigo{\{"error": "mensaje"\}}. Estados principales: \codigo{400} para datos inválidos o materia inexistente, \codigo{404} para monitor o ruta inexistente, \codigo{405} para método no permitido, \codigo{409} para código duplicado, \codigo{502} ante indisponibilidad de un servicio descendente, \codigo{503} ante indisponibilidad de PostgreSQL y \codigo{500} para errores no previstos. El detalle técnico se registra en logs, no se devuelve al usuario.
+
+Para el catálogo completo de mensajes exactos y el orden de validación, consultar las secciones 6 a 8 de \archivo{api-contract.md}.
+
+\section{Configuración y despliegue}
+
+\subsection{Requisitos}
+
+Se necesita Docker Desktop con Docker Compose v2 en ejecución y los puertos locales disponibles. No es necesario instalar Java, PHP, Python ni PostgreSQL en el equipo para ejecutar el sistema integrado.
+
+\subsection{Inicio y detención}
+
+\begin{lstlisting}
+git clone https://github.com/CristianGarcia21/monitores-ucaldas.git
+cd monitores-ucaldas
+docker compose up --build -d
+docker compose ps
+\end{lstlisting}
+
+La interfaz queda disponible en \url{http://localhost:8080}. Para detener los servicios sin borrar la base:
+
+\begin{lstlisting}
+docker compose down
+\end{lstlisting}
+
+\textbf{Destructivo:} \codigo{docker compose down -v} elimina también el volumen de PostgreSQL y todos los datos. \codigo{./scripts/reset-db.sh} también reinicializa la base de datos.
+
+\subsection{Variables de entorno}
+
+Las variables permiten ajustar los puertos publicados y los parámetros de conexión. Para configurar el entorno local, copiar \codigo{.env.example} como \codigo{.env} y cambiar los valores necesarios.
+
+\begin{tabularx}{\textwidth}{p{0.3\textwidth}p{0.2\textwidth}Y}
+\toprule
+\textbf{Variable} & \textbf{Por defecto} & \textbf{Uso} \\
+\midrule
+\archivo{FRONTEND_PORT} & 8080 & Puerto local del frontend. \\
+\archivo{JAVA_PORT} & 8081 & Puerto local del controlador. \\
+\archivo{PHP_PORT} & 8082 & Puerto local del intermediario. \\
+\archivo{PYTHON_PORT} & 8083 & Puerto local del servicio de persistencia. \\
+\archivo{DB_PORT} & 5432 & Puerto local publicado de PostgreSQL. \\
+\archivo{POSTGRES_DB} & \codigo{monitores} & Nombre de la base de datos. \\
+\archivo{POSTGRES_USER} & \codigo{monitores} & Usuario de PostgreSQL. \\
+\archivo{POSTGRES_PASSWORD} & \codigo{monitores} & Contraseña de PostgreSQL. \\
+\bottomrule
+\end{tabularx}
+
+Los valores de conexión entre servicios se configuran en Compose como \archivo{PHP_SERVICE_URL}, \archivo{PYTHON_SERVICE_URL} y \archivo{DB_HOST}. Los nombres internos de host en Docker no se sustituyen por \codigo{localhost}.
+
+\section{Verificación y pruebas}
+
+\subsection{Prueba de integración}
+
+Con los cinco servicios levantados, ejecutar el smoke test completo:
+
+\begin{lstlisting}
+./scripts/smoke-test.sh
+\end{lstlisting}
+
+En Windows PowerShell:
+
+\begin{lstlisting}
+.\scripts\smoke-test.ps1
+\end{lstlisting}
+
+El script recorre operaciones CRUD contra \codigo{http://localhost:8080/api}, valida estados y mensajes del contrato, y elimina los registros de prueba al finalizar.
+
+\subsection{Pruebas por servicio}
+
+\begin{itemize}
+  \item \textbf{Python:} desde \archivo{python-service}, instalar \archivo{requirements-dev.txt} y ejecutar \codigo{pytest}. Las pruebas que requieren datos necesitan la base activa; las de validación pueden ejecutarse sin ella.
+  \item \textbf{Java:} desde la raíz del repositorio, ejecutar:
+\begin{lstlisting}
+docker run --rm -v "${PWD}/java-controller:/app" \
+  -w /app maven:3.9-eclipse-temurin-21 mvn -q test
+\end{lstlisting}
+  En Git Bash puede requerirse \archivo{MSYS_NO_PATHCONV=1}.
+  \item \textbf{PHP:} el README de \archivo{php-service} documenta pruebas con un mock local de Python y peticiones \codigo{curl}.
+  \item \textbf{Frontend:} \archivo{frontend/api.js} dispone del modo mock para desarrollo aislado; en la configuración integrada \codigo{USE\_MOCK} es \codigo{false}.
+\end{itemize}
+
+\section{Operación y diagnóstico}
+
+\subsection{Salud y logs}
+
+\begin{lstlisting}
+docker compose ps
+docker compose logs -f java-controller
+./scripts/logs.sh python-service
+\end{lstlisting}
+
+Cada servicio registra una línea por petición con el patrón \codigo{[servicio] MÉTODO RUTA -> STATUS (ms)}. Los endpoints \codigo{/health} verifican que el proceso respectivo esté vivo, no que todas las dependencias estén disponibles.
+
+\subsection{Problemas frecuentes}
+
+\begin{tabularx}{\textwidth}{p{0.3\textwidth}Y}
+\toprule
+\textbf{Síntoma} & \textbf{Acción} \\
+\midrule
+No conecta con Docker & Iniciar Docker Desktop, esperar a que esté listo y repetir el comando. \\
+Puerto ocupado & Cambiar el valor correspondiente en \archivo{.env}; si es PostgreSQL, por ejemplo, usar \codigo{DB\_PORT=5433}. \\
+Servicio no saludable & Revisar \codigo{docker compose ps} y consultar sus logs con \codigo{docker compose logs -f <servicio>}. \\
+La interfaz no refleja cambios en \archivo{database/init.sql} & El script solo corre sobre un volumen vacío. Reinicializar la base elimina los datos existentes. \\
+PowerShell bloquea scripts & Ejecutar con \codigo{-ExecutionPolicy Bypass}, según el comando documentado en \archivo{README.md}. \\
+\bottomrule
+\end{tabularx}
+
+\section{Seguridad y límites conocidos}
+
+La aplicación no implementa autenticación ni autorización. La configuración predeterminada de PostgreSQL es para desarrollo y no debe tratarse como credencial de producción. Mantener el sistema en un entorno controlado y cambiar las credenciales si se expone fuera del equipo local.
+
+El backend evita devolver trazas y ejecuta consultas parametrizadas. El frontend usa un origen único mediante nginx, por lo que no configura CORS. Este proyecto no define copias de seguridad automáticas; el volumen persistente no equivale a un respaldo.
+
+\section{Mapa del repositorio}
+
+\begin{tabularx}{\textwidth}{p{0.36\textwidth}Y}
+\toprule
+\textbf{Ruta} & \textbf{Contenido} \\
+\midrule
+\archivo{frontend/} & Interfaz, cliente de API, estilos y configuración nginx. \\
+\archivo{java-controller/} & API Java, validación, cliente PHP, excepciones y pruebas. \\
+\archivo{php-service/} & Enrutamiento HTTP, validación de JSON y cliente cURL para Python. \\
+\archivo{python-service/} & Endpoints, esquemas, repositorio SQL, conexión y pruebas. \\
+\archivo{database/init.sql} & Esquema y datos iniciales de PostgreSQL. \\
+\archivo{docker-compose.yml} & Construcción, puertos, volúmenes, dependencias y healthchecks. \\
+\archivo{scripts/} & Smoke tests y utilidades de logs y reinicio de base de datos. \\
+\archivo{docs/api-contract.md} & Contrato normativo de API y datos. \\
+\bottomrule
+\end{tabularx}
+
+\section{Documentos relacionados}
+
+\begin{itemize}
+  \item \archivo{manual-usuario.pdf}: guía de uso de la interfaz.
+  \item \archivo{manual-usuario.tex}: fuente LaTeX del manual de usuario.
+\item \archivo{arquitectura.pdf}: diagrama de arquitectura.
+  \item \archivo{api-contract.md}: contrato detallado de integración.
+\end{itemize}
+
+\end{document}
