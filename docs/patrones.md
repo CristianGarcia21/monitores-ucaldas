@@ -3,8 +3,9 @@
 **Entregable 1 (segunda parte).** Qué arquitecturas, estilos y patrones usa el sistema de Gestión de
 Monitores Académicos y dónde están en el código.
 
-Cada patrón tiene los cuatro puntos que pide el enunciado: **nombre**, **características principales**,
-**componentes que lo implementan** y **justificación**. Las reglas citadas (A1, H7, §6…) son del
+Cada patrón tiene los puntos que pide el enunciado: **nombre**, **características principales**,
+**componentes que participan** y **por qué se considera presente** en la solución (con la evidencia
+del código o la configuración). Las reglas citadas (A1, H7, §6…) son del
 [contrato del sistema](api-contract.md).
 
 Vista general del sistema (detalle en el [diagrama de arquitectura](arquitectura.md)):
@@ -35,7 +36,7 @@ Navegador ─► nginx (frontend :8080) ─/api─► Java (:8081) ─► PHP (:
 - Cada capa tiene una responsabilidad única y no conoce los detalles internos de las demás.
 - Las capas son también *tiers* físicos: cada una corre en su propio contenedor.
 
-**Componentes que lo implementan**
+**Componentes que participan**
 
 | Capa | Componente | Responsabilidad |
 |------|------------|-----------------|
@@ -45,13 +46,15 @@ Navegador ─► nginx (frontend :8080) ─/api─► Java (:8081) ─► PHP (:
 | Lógica de negocio y persistencia | `python-service/` (FastAPI) | Valida de nuevo, verifica existencia y duplicados, ejecuta SQL |
 | Datos | `database/` (PostgreSQL 16) | Integridad con PK, FK y `CHECK` |
 
-**Justificación**
+**Por qué está presente**
 
-- El contrato lo exige (A1): toda operación atraviesa **todas** las capas en orden y nadie se salta una.
-- Separar responsabilidades permitió que seis personas trabajaran en paralelo, cada una en su carpeta.
-- Un error se puede ubicar en la capa que lo produce. Por ejemplo, un 400 de formato siempre viene de Java;
-  uno de materia inexistente, de Python.
-
+- Las cinco capas existen como componentes separados y cada una **solo llama a la siguiente**:
+  nginx solo conoce a Java (`proxy_pass` en `nginx.conf`), Java solo a PHP (`PHP_SERVICE_URL`), PHP
+  solo a Python (`PYTHON_SERVICE_URL`) y solo Python abre conexiones con la base de datos (`db.py`).
+- Ninguna capa se salta a otra: así lo exige el contrato (A1) y lo cumple el enunciado ("las
+  operaciones del CRUD deberán atravesar los componentes definidos").
+- Cada capa tiene una responsabilidad distinta que no se repite en las demás. Por ejemplo, solo Python
+  sabe si una materia existe.
 ## 2. Cliente-servidor
 
 **Características principales**
@@ -60,19 +63,20 @@ Navegador ─► nginx (frontend :8080) ─/api─► Java (:8081) ─► PHP (:
 - La comunicación es síncrona petición–respuesta sobre HTTP.
 - Un mismo componente puede ser servidor de la capa de arriba y cliente de la de abajo.
 
-**Componentes que lo implementan**
+**Componentes que participan**
 
 - El **navegador** es el cliente de nginx (`frontend/api.js`, función `peticion()` con `fetch`).
 - **Java** es servidor del navegador y cliente de PHP (`client/PhpClient.java`, con `RestClient`).
 - **PHP** es servidor de Java y cliente de Python (`PythonClient.php`, con cURL).
 - **Python** es servidor de PHP y cliente de PostgreSQL (`db.py`, con psycopg 3).
 
-**Justificación**
+**Por qué está presente**
 
-El navegador solo necesita conocer una URL relativa (`/api/...`, regla A2). Los servidores pueden
-cambiar por dentro mientras respeten el contrato. Los timeouts del cliente (T1: 3 s de conexión y 10 s
-de lectura) delimitan cuánto espera cada salto.
-
+- Toda interacción es una **petición HTTP iniciada por un cliente** que espera la respuesta de un
+  servidor.
+- Ningún servidor inicia comunicación hacia su cliente: no hay *websockets*, *callbacks* ni colas (A5).
+- Los clientes están en el código: `fetch` en `frontend/api.js`, `RestClient` en
+  `client/PhpClient.java`, cURL en `php-service/PythonClient.php` y psycopg en `python-service/db.py`.
 ## 3. Arquitectura orientada a servicios / microservicios
 
 **Características principales**
@@ -82,17 +86,21 @@ de lectura) delimitan cuánto espera cada salto.
 - Los servicios se comunican solo por la red (HTTP/JSON, A5): no comparten memoria, archivos ni colas.
 - Cada servicio se construye y prueba por separado (`docker compose build <servicio>`).
 
-**Componentes que lo implementan**
+**Componentes que participan**
 
 - Cinco contenedores en `docker-compose.yml`: `frontend`, `java-controller`, `php-service`,
   `python-service` y `database`.
 - Cada uno tiene un *healthcheck* y arranca solo cuando su dependencia está sana:
   database → python → php → java → frontend.
 
-**Justificación**
+**Por qué está presente**
 
-Permite desplegar, reiniciar (`restart: unless-stopped`) y escalar cada pieza por separado. Cada
-tecnología queda aislada en su contenedor con sus versiones.
+- Cada servicio es un **proceso independiente** en su propio contenedor (`docker-compose.yml`), con
+  su propia imagen (`Dockerfile`), su propio puerto y su propio `/health`.
+- Se comunican **solo por la red**, con URLs configurables.
+- Se construyen, reinician y prueban por separado (`docker compose build <servicio>`,
+  `restart: unless-stopped`). Con un servicio detenido, los demás siguen respondiendo (ver
+  [endpoints.md](endpoints.md#verificación)).
 
 > **Precisión:** no es una arquitectura de microservicios "pura". Los servicios no se reparten
 > dominios de negocio distintos: forman una **cadena** sobre un mismo recurso (`monitores`), y solo
@@ -112,16 +120,19 @@ tecnología queda aislada en su contenedor con sus versiones.
 - **Representación JSON** en UTF-8 (H4, H9), con claves `snake_case` y sin envoltorio (J1, J3).
 - **Códigos HTTP con significado**: 200, 201, 204, 400, 404, 405, 409, 500, 502, 503 (H6).
 
-**Componentes que lo implementan**
+**Componentes que participan**
 
 Las cuatro capas de backend exponen **las mismas rutas**: nginx con el prefijo `/api` y Java, PHP y
 Python sin él (A4). Los 7 endpoints están en [endpoints.md](endpoints.md).
 
-**Justificación**
+**Por qué está presente**
 
-Una interfaz uniforme hace que el contrato sea idéntico en todas las capas: el mismo `curl` o la misma
-colección de Postman sirve para probar Java, PHP o Python cambiando solo el puerto.
-
+- Las rutas son **sustantivos** (`/monitores`, `/materias`) y las operaciones se distinguen solo por
+  el **verbo HTTP** sobre la misma URI: `GET`, `POST`, `PUT` y `DELETE` sobre `/monitores/{codigo}`.
+- Los códigos de estado tienen su significado estándar: 201 al crear, 204 al borrar, 404 si no existe
+  y 409 si hay conflicto.
+- Ninguna capa guarda sesión entre peticiones: no hay cookies ni estado en memoria. Todos los datos
+  viajan como JSON.
 ## 5. Pipes & Filters / cadena de responsabilidad
 
 **Características principales**
@@ -131,7 +142,7 @@ colección de Postman sirve para probar Java, PHP o Python cambiando solo el pue
 - Cada etapa es independiente y se comunica con la siguiente por la misma interfaz (HTTP/JSON).
 - La respuesta regresa por la misma cadena sin ser reescrita (H7).
 
-**Componentes que lo implementan**
+**Componentes que participan**
 
 | Etapa | Qué filtra | Cuándo corta la cadena |
 |-------|------------|------------------------|
@@ -141,13 +152,15 @@ colección de Postman sirve para probar Java, PHP o Python cambiando solo el pue
 | Python (`schemas.py`, `main.py`) | Valida de nuevo y aplica reglas de negocio | Monitor inexistente (404), materia inexistente (400), código repetido (409) |
 | PostgreSQL | `PRIMARY KEY`, `FOREIGN KEY`, `CHECK` | Última barrera de integridad |
 
-**Justificación**
+**Por qué está presente**
 
-Cada capa detiene el error lo antes posible: un correo inválido no consume ni la red hacia PHP ni una
-consulta a la BD. Es una *cadena de responsabilidad*: cada eslabón decide si atiende la petición o la
-delega. La validación se repite a propósito en Python, porque Python no confía en que Java ya validó
-(§9).
-
+- La petición recorre una **cadena fija** (nginx → Java → PHP → Python → BD), y cualquier eslabón
+  puede responder sin delegar.
+- Ejemplo verificado con el smoke test: un `POST` sin nombre recibe 400 de Java y **no aparece en los
+  logs de PHP**.
+- PHP corta con 404, 405 o JSON inválido, y Python con 404, 400 o 409.
+- Cada etapa transforma o filtra la petición antes de pasarla: nginx quita `/api`, y Java envía a PHP
+  el JSON ya normalizado.
 ## 6. Proxy / API Gateway
 
 **Características principales**
@@ -155,7 +168,7 @@ delega. La validación se repite a propósito en Python, porque Python no confí
 - Un intermediario recibe las peticiones en lugar del servicio real y las reenvía.
 - Oculta la ubicación de los servicios internos y centraliza la entrada.
 
-**Componentes que lo implementan**
+**Componentes que participan**
 
 - **nginx (proxy inverso / puerta de entrada):** `frontend/nginx.conf` reenvía
   `location /api/` a `http://java-controller:8081/` quitando el prefijo. El navegador solo conoce
@@ -164,11 +177,12 @@ delega. La validación se repite a propósito en Python, porque Python no confí
   permitidas, valida que el cuerpo sea JSON y reenvía método, ruta y cuerpo **sin modificarlos**
   (`PythonClient::forward`). Si Python no responde, genera su propio 502 (E16).
 
-**Justificación**
+**Por qué está presente**
 
-nginx da un único origen al navegador y aísla los servicios internos; la base de datos nunca queda
-expuesta a la interfaz. PHP desacopla a Java de la ubicación de Python: Java solo conoce
-`PHP_SERVICE_URL`. Además, PHP aísla los fallos de persistencia, porque los traduce a un 502 propio.
+- `frontend/nginx.conf` contiene `location /api/ { proxy_pass http://java-controller:8081/; }`. El
+  navegador solo conoce `localhost:8080` y nunca las direcciones internas.
+- `php-service/index.php` reenvía a Python el **mismo método, ruta y cuerpo** que recibió (cURL en
+  `PythonClient::forward`) y devuelve la respuesta sin cambiarla. Ese es el comportamiento de un proxy.
 
 > nginx actúa como **proxy inverso** más que como API Gateway completo: no hace autenticación,
 > límites de tráfico ni agregación. Es el rol de *gateway* que este sistema necesita.
@@ -181,7 +195,7 @@ expuesta a la interfaz. PHP desacopla a Java de la ubicación de Python: Java so
 - Quien lo llama trabaja con diccionarios, no con SQL.
 - Las consultas usan **parámetros** (`%(codigo)s`), nunca concatenación (T4).
 
-**Componentes que lo implementan**
+**Componentes que participan**
 
 - `python-service/repository.py`: `listar_materias`, `existe_materia`, `listar_monitores`,
   `obtener_monitor`, `crear_monitor`, `actualizar_monitor` y `eliminar_monitor`.
@@ -189,12 +203,11 @@ expuesta a la interfaz. PHP desacopla a Java de la ubicación de Python: Java so
   del repositorio recibe la conexión, así que el endpoint decide qué operaciones van en la misma
   transacción.
 
-**Justificación**
+**Por qué está presente**
 
-Los endpoints (`main.py`) no contienen SQL: solo deciden qué responder según lo que devuelve el
-repositorio. El SQL parametrizado evita la inyección SQL. Si el esquema cambia, solo se toca este
-módulo.
-
+- **Todo el SQL** del sistema está en `python-service/repository.py`. `main.py` no contiene ninguna
+  consulta: llama a funciones como `obtener_monitor(conexion, codigo)` y recibe diccionarios.
+- Todas las consultas usan parámetros (`%(codigo)s`).
 ## 8. DTO (Data Transfer Object)
 
 **Características principales**
@@ -202,7 +215,7 @@ módulo.
 - Objetos sin lógica de negocio que definen **qué datos viajan** entre capas y con qué forma.
 - Separan el formato de la petición del formato de la respuesta.
 
-**Componentes que lo implementan**
+**Componentes que participan**
 
 - **Python (DTO explícitos):** en `python-service/schemas.py`, `MonitorCreate` (cuerpo de POST),
   `MonitorUpdate` (cuerpo de PUT, sin `codigo`), `MonitorOut` y `MateriaOut` (respuestas) y `ErrorOut`
@@ -212,15 +225,17 @@ módulo.
   objeto es lo que se envía a PHP. Por eso los campos extra se descartan (J6).
 - **Contrato (§5):** define los tres formatos (Monitor petición POST, petición PUT y respuesta).
 
-**Justificación**
+**Por qué está presente**
 
-Fija la forma de los datos en cada frontera. `materia_nombre` solo existe en respuestas. El `codigo`
-del cuerpo de un PUT se ignora (J6), y una respuesta nunca tiene campos `null` (J5).
+- Las clases de `python-service/schemas.py` **solo tienen campos y validación**, sin lógica de
+  negocio ni acceso a datos.
+- Definen formas distintas para la petición (`MonitorCreate`, `MonitorUpdate`) y para la respuesta
+  (`MonitorOut`): `materia_nombre` solo existe en la respuesta, y `codigo` no existe en el cuerpo del
+  PUT.
+- En Java cumple ese papel el objeto que arma `MonitorValidator`, con solo los campos del contrato.
 
-> En Java no se usaron `record` con Bean Validation, aunque CONTRIBUTING los sugiere. El contrato
-> exige responder **solo el primer error en un orden fijo** (§6.3) y rechazar `materia_id` enviado
-> como texto. Las anotaciones no garantizan ninguna de las dos cosas (ver el comentario de
-> `MonitorValidator.java`).
+> Java no usa clases DTO con anotaciones de validación: el contrato exige responder solo el primer
+> error en un orden fijo (§6.3), y por eso `MonitorValidator` valida a mano.
 
 ## 9. Arquitectura heterogénea / políglota
 
@@ -230,7 +245,7 @@ del cuerpo de un PUT se ignora (J6), y una respuesta nunca tiene campos `null` (
   (HTTP + JSON en UTF-8).
 - La interoperabilidad depende de un **contrato común** y no de librerías compartidas.
 
-**Componentes que lo implementan**
+**Componentes que participan**
 
 | Capa | Lenguaje / tecnología |
 |------|-----------------------|
@@ -240,10 +255,8 @@ del cuerpo de un PUT se ignora (J6), y una respuesta nunca tiene campos `null` (
 | Persistencia | Python 3.12 + FastAPI + psycopg 3 + Pydantic v2 |
 | Datos | PostgreSQL 16 (SQL) |
 
-**Justificación**
+**Por qué está presente**
 
-Es un requisito del enunciado y muestra que la integración no depende del lenguaje. El costo es
-mantener reglas idénticas en lenguajes distintos. Por ejemplo, el `trim()` de Java, el `strip()` de
-Python y el `trim()` de JavaScript no quitan los mismos caracteres. Python tuvo que replicar
-exactamente el comportamiento de Java para que la normalización fuera "la misma" (§6.1). El análisis
-completo está en [ventajas-dificultades.md](ventajas-dificultades.md).
+- Cada componente está escrito en un **lenguaje distinto** (ver la tabla) y se ejecuta en su propio
+  entorno: JVM, intérprete de PHP, intérprete de Python y motor de PostgreSQL.
+- No comparten librerías ni código: se integran solo por HTTP/JSON, según el contrato común.
