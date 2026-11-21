@@ -1,0 +1,745 @@
+{
+  "info": {
+    "name": "Gestión de Monitores Académicos",
+    "description": "Colección de los 7 endpoints del contrato (docs/api-contract.md §8) con pruebas automáticas.\n\nLas cuatro capas exponen las mismas rutas (contrato A4): cambia la variable `baseUrl` para probar cada una.\n\n| Capa | baseUrl |\n|---|---|\n| nginx (entrada pública) | http://localhost:8080/api |\n| Java | http://localhost:8081 |\n| PHP | http://localhost:8082 |\n| Python | http://localhost:8083 |\n\nEjecuta las carpetas en orden (Collection Runner o `newman run`). La carpeta CRUD crea, consulta, actualiza y borra el monitor de prueba `DEV-001` (prefijo DEV-, contrato §12) y lo deja eliminado.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/api",
+      "type": "string"
+    },
+    {
+      "key": "codigo",
+      "value": "DEV-001",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Salud y materias",
+      "item": [
+        {
+          "name": "GET /health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Content-Type JSON UTF-8\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/application\\/json;\\s*charset=utf-8/i));",
+                  "pm.test(\"status ok\", () => pm.expect(pm.response.json().status).to.eql(\"ok\"));",
+                  "pm.test(\"service válido\", () => pm.expect([\"java-controller\", \"php-service\", \"python-service\"]).to.include(pm.response.json().service));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Salud del servicio que atiende (no consulta la capa siguiente, T3). `service` vale java-controller, php-service o python-service."
+          }
+        },
+        {
+          "name": "GET /materias",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Content-Type JSON UTF-8\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/application\\/json;\\s*charset=utf-8/i));",
+                  "const materias = pm.response.json();",
+                  "pm.test(\"Arreglo plano (J3)\", () => pm.expect(materias).to.be.an(\"array\"));",
+                  "pm.test(\"Incluye SW3 con id 1\", () => pm.expect(materias).to.deep.include({ id: 1, codigo: \"SW3\", nombre: \"Ingeniería de Software III\" }));",
+                  "pm.test(\"Ordenada por nombre\", () => { const n = materias.map(m => m.nombre); pm.expect(n).to.eql([...n].sort((a, b) => a.localeCompare(b, \"es\"))); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/materias",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "materias"
+              ]
+            },
+            "description": "Lista de materias ordenada por nombre (J7). Solo lectura."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. CRUD de monitores (en orden)",
+      "item": [
+        {
+          "name": "Limpieza previa: DELETE /monitores/{{codigo}}",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204 o 404\", () => pm.expect(pm.response.code).to.be.oneOf([204, 404]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/monitores/{{codigo}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "monitores",
+                "{{codigo}}"
+              ]
+            },
+            "description": "Borra DEV-001 si quedó de una ejecución anterior. Acepta 204 o 404."
+          }
+        },
+        {
+          "name": "GET /monitores (RF2)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Content-Type JSON UTF-8\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/application\\/json;\\s*charset=utf-8/i));",
+                  "const lista = pm.response.json();",
+                  "pm.test(\"Arreglo plano (J3)\", () => pm.expect(lista).to.be.an(\"array\"));",
+                  "pm.test(\"Ordenada por código\", () => { const c = lista.map(m => m.codigo); pm.expect(c).to.eql([...c].sort()); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/monitores",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "monitores"
+              ]
+            },
+            "description": "Lista de monitores ordenada por código (J7). Sin monitores responde [] (J4)."
+          }
+        },
+        {
+          "name": "POST /monitores (RF1) → 201",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Content-Type JSON UTF-8\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/application\\/json;\\s*charset=utf-8/i));",
+                  "const m = pm.response.json();",
+                  "pm.test(\"Monitor normalizado con materia_nombre\", () => pm.expect(m).to.eql({ codigo: \"DEV-001\", nombre: \"José Ñúñez Peña\", correo: \"jose.nunez@ucaldas.edu.co\", materia_id: 1, materia_nombre: \"Ingeniería de Software III\" }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/monitores",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "monitores"
+              ]
+            },
+            "description": "Crea un monitor. El cuerpo trae espacios, minúsculas y mayúsculas a propósito: se guarda normalizado (§6.1).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \" dev-001 \",\n  \"nombre\": \"José  Ñúñez Peña\",\n  \"correo\": \"Jose.Nunez@UCaldas.edu.co\",\n  \"materia_id\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /monitores repetido (RF6) → 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Content-Type JSON UTF-8\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/application\\/json;\\s*charset=utf-8/i));",
+                  "pm.test(\"Mensaje: Ya existe un monitor con el código DEV-001\", () => pm.expect(pm.response.json()).to.eql({ error: \"Ya existe un monitor con el código DEV-001\" }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/monitores",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "monitores"
+              ]
+            },
+            "description": "El mismo código otra vez: PostgreSQL rechaza la clave primaria y Python responde 409 (E12), que PHP y Java propagan.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \" dev-001 \",\n  \"nombre\": \"José  Ñúñez Peña\",\n  \"correo\": \"Jose.Nunez@UCaldas.edu.co\",\n  \"materia_id\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /monitores/{codigo} en minúsculas (RF3) → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Content-Type JSON UTF-8\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/application\\/json;\\s*charset=utf-8/i));",
+                  "pm.test(\"Encuentra DEV-001\", () => pm.expect(pm.response.json().codigo).to.eql(\"DEV-001\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/monitores/dev-001",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "monitores",
+                "dev-001"
+              ]
+            },
+            "description": "El código de la ruta se normaliza a mayúsculas (§6.1)."
+          }
+        },
+        {
+          "name": "PUT /monitores/{codigo} (RF4) → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Content-Type JSON UTF-8\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/application\\/json;\\s*charset=utf-8/i));",
+                  "const m = pm.response.json();",
+                  "pm.test(\"Actualizado; el código no cambia\", () => pm.expect(m).to.eql({ codigo: \"DEV-001\", nombre: \"José Ñúñez Peña Ruiz\", correo: \"jose.nunez@ucaldas.edu.co\", materia_id: 2, materia_nombre: \"Bases de Datos I\" }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/monitores/{{codigo}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "monitores",
+                "{{codigo}}"
+              ]
+            },
+            "description": "Reemplaza nombre, correo y materia. El `codigo` del cuerpo se ignora (J6).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"OTRO-CODIGO\",\n  \"nombre\": \"José Ñúñez Peña Ruiz\",\n  \"correo\": \"jose.nunez@ucaldas.edu.co\",\n  \"materia_id\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE /monitores/{codigo} (RF5) → 204",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código HTTP 204\", () => pm.response.to.have.status(204));",
+                  "pm.test(\"Sin cuerpo\", () => pm.expect(pm.response.text()).to.eql(\"\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/monitores/{{codigo}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "monitores",
+                "{{codigo}}"
+              ]
+            },
+            "description": "Elimina el monitor. 204 sin cuerpo (H5)."
+          }
+        },
+        {
+          "name": "DELETE /monitores/{codigo} otra vez → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Content-Type JSON UTF-8\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/application\\/json;\\s*charset=utf-8/i));",
+                  "pm.test(\"Mensaje: No existe un monitor con el código DEV-001\", () => pm.expect(pm.response.json()).to.eql({ error: \"No existe un monitor con el código DEV-001\" }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/monitores/{{codigo}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "monitores",
+                "{{codigo}}"
+              ]
+            },
+            "description": "El monitor ya no existe (E11)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Errores del contrato",
+      "item": [
+        {
+          "name": "GET /monitores/X-999 → 404 (E11)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Content-Type JSON UTF-8\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/application\\/json;\\s*charset=utf-8/i));",
+                  "pm.test(\"Mensaje: No existe un monitor con el código X-999\", () => pm.expect(pm.response.json()).to.eql({ error: \"No existe un monitor con el código X-999\" }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/monitores/X-999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "monitores",
+                "X-999"
+              ]
+            },
+            "description": "Código inexistente."
+          }
+        },
+        {
+          "name": "POST sin nombre → 400 (E04)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Content-Type JSON UTF-8\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/application\\/json;\\s*charset=utf-8/i));",
+                  "pm.test(\"Mensaje: El nombre es obligatorio\", () => pm.expect(pm.response.json()).to.eql({ error: \"El nombre es obligatorio\" }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/monitores",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "monitores"
+              ]
+            },
+            "description": "Por nginx o Java lo responde Java sin llamar a PHP. Directo a PHP o Python, lo responde Python con el mismo mensaje.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"DEV-002\",\n  \"correo\": \"dev2@ucaldas.edu.co\",\n  \"materia_id\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST correo inválido → 400 (E07)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Content-Type JSON UTF-8\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/application\\/json;\\s*charset=utf-8/i));",
+                  "pm.test(\"Mensaje: El correo no es válido\", () => pm.expect(pm.response.json()).to.eql({ error: \"El correo no es válido\" }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/monitores",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "monitores"
+              ]
+            },
+            "description": "El correo debe tener usuario, @ y dominio con punto.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"DEV-002\",\n  \"nombre\": \"Dev Dos\",\n  \"correo\": \"dev2@ucaldas\",\n  \"materia_id\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST materia_id como texto → 400 (E09)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Content-Type JSON UTF-8\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/application\\/json;\\s*charset=utf-8/i));",
+                  "pm.test(\"Mensaje: La materia es obligatoria\", () => pm.expect(pm.response.json()).to.eql({ error: \"La materia es obligatoria\" }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/monitores",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "monitores"
+              ]
+            },
+            "description": "materia_id debe ser un entero JSON: \"1\" se rechaza (§6.2).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"DEV-002\",\n  \"nombre\": \"Dev Dos\",\n  \"correo\": \"dev2@ucaldas.edu.co\",\n  \"materia_id\": \"1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST materia inexistente → 400 (E10)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Content-Type JSON UTF-8\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/application\\/json;\\s*charset=utf-8/i));",
+                  "pm.test(\"Mensaje: La materia indicada no existe\", () => pm.expect(pm.response.json()).to.eql({ error: \"La materia indicada no existe\" }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/monitores",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "monitores"
+              ]
+            },
+            "description": "Solo Python puede saberlo (consulta la BD); PHP y Java lo propagan.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"DEV-002\",\n  \"nombre\": \"Dev Dos\",\n  \"correo\": \"dev2@ucaldas.edu.co\",\n  \"materia_id\": 99\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST JSON mal formado → 400 (E01)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Content-Type JSON UTF-8\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/application\\/json;\\s*charset=utf-8/i));",
+                  "pm.test(\"Mensaje: JSON inválido\", () => pm.expect(pm.response.json()).to.eql({ error: \"JSON inválido\" }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/monitores",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "monitores"
+              ]
+            },
+            "description": "Cuerpo que no es JSON válido.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"codigo\": \"DEV-002\", \"nombre\": ",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PUT monitor inexistente → 404 (E11)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Content-Type JSON UTF-8\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/application\\/json;\\s*charset=utf-8/i));",
+                  "pm.test(\"Mensaje: No existe un monitor con el código DEV-404\", () => pm.expect(pm.response.json()).to.eql({ error: \"No existe un monitor con el código DEV-404\" }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/monitores/DEV-404",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "monitores",
+                "DEV-404"
+              ]
+            },
+            "description": "Python verifica la existencia del monitor antes que la materia (§6.3 paso 6).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Nadie\",\n  \"correo\": \"nadie@ucaldas.edu.co\",\n  \"materia_id\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE /monitores → 405 (E14)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código HTTP 405\", () => pm.response.to.have.status(405));",
+                  "pm.test(\"Content-Type JSON UTF-8\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/application\\/json;\\s*charset=utf-8/i));",
+                  "pm.test(\"Mensaje: Método no permitido\", () => pm.expect(pm.response.json()).to.eql({ error: \"Método no permitido\" }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/monitores",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "monitores"
+              ]
+            },
+            "description": "La ruta existe pero no admite DELETE (H10)."
+          }
+        },
+        {
+          "name": "GET /monitores/ con barra final → 404 (E13)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Content-Type JSON UTF-8\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/application\\/json;\\s*charset=utf-8/i));",
+                  "pm.test(\"Mensaje: Ruta no encontrada\", () => pm.expect(pm.response.json()).to.eql({ error: \"Ruta no encontrada\" }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/monitores/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "monitores",
+                ""
+              ]
+            },
+            "description": "Las rutas no llevan barra final (H1)."
+          }
+        }
+      ]
+    }
+  ]
+}
