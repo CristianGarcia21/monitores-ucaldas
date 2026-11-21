@@ -2,10 +2,12 @@
 -- Se ejecuta automáticamente la primera vez que arranca el contenedor de PostgreSQL.
 -- Para volver a aplicarlo: docker compose down -v && docker compose up --build
 
+-- nombre usa la intercalación del español (ICU) para que ORDER BY nombre (contrato J7) ordene
+-- como se espera: "Álgebra Lineal" antes de "Bases de Datos I" y no después de la Z
 CREATE TABLE IF NOT EXISTS materias (
     id      SERIAL PRIMARY KEY,
     codigo  VARCHAR(20)  NOT NULL UNIQUE,
-    nombre  VARCHAR(120) NOT NULL
+    nombre  VARCHAR(120) NOT NULL COLLATE "es-x-icu"
 );
 
 -- Restricciones equivalentes a la validación del contrato §6.2 (§10).
