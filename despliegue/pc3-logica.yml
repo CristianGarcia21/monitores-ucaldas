@@ -1,0 +1,57 @@
+# PC3 · Capa de lógica y datos: servicio Python (persistencia y reglas de negocio) y PostgreSQL.
+#
+# Recibe las peticiones del PHP del PC2 en el puerto 8083. La base de datos va en este mismo equipo
+# porque solo Python se conecta a ella (contrato A3): no se expone a la red.
+#
+# Uso, desde la raíz del repo:
+#   docker compose -f despliegue/pc3-logica.yml up --build -d
+# Guía completa: despliegue/README.md
+
+name: monitores-pc3-logica
+
+services:
+  database:
+    image: postgres:16-alpine
+    container_name: monitores-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-monitores}
+      POSTGRES_USER: ${POSTGRES_USER:-monitores}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-monitores}
+    ports:
+      # Solo para revisar la BD desde este equipo (y correr pytest); no se expone a la red
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ../database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  python-service:
+    build: ../python-service
+    container_name: monitores-python
+    restart: unless-stopped
+    environment:
+      DB_HOST: database
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-monitores}
+      DB_USER: ${POSTGRES_USER:-monitores}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-monitores}
+    ports:
+      # El PHP del PC2 llama a este puerto: se expone a la red
+      - "${PYTHON_PORT:-8083}:8083"
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8083/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  db-data:

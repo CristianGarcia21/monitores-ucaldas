@@ -31,6 +31,7 @@ Toda operación atraviesa todas las capas en ese orden; solo `python-service` se
 | `python-service/`  | Persistencia              | Python 3.12 + FastAPI          | 8083   |
 | `database/`        | Base de datos             | PostgreSQL 16                  | 5432   |
 | `scripts/`         | Scripts de utilidad y smoke test | bash y PowerShell       | —      |
+| `despliegue/`      | Despliegue en tres equipos | Docker Compose                 | —      |
 | `docs/`            | Contrato, diagramas y documento final | Markdown            | —      |
 
 ## Requisitos
@@ -69,6 +70,21 @@ Luego abre **http://localhost:8080**.
 
 La base de datos se crea con `database/init.sql`, que carga 8 materias y 7 monitores de ejemplo
 (`M-001` a `M-007`).
+
+## Despliegue en tres equipos
+
+Para repartir el sistema en tres computadores de la misma red, usa los archivos de
+[`despliegue/`](despliegue/README.md) en lugar del `docker-compose.yml`:
+
+| Equipo | Capa | Servicios | Comando |
+|--------|------|-----------|---------|
+| PC1 | Presentación | Interfaz (nginx) y controlador Java | `docker compose -f despliegue/pc1-presentacion.yml up --build -d` |
+| PC2 | Intermediario | Servicio PHP | `docker compose -f despliegue/pc2-intermediario.yml up --build -d` |
+| PC3 | Lógica y datos | Servicio Python y PostgreSQL | `docker compose -f despliegue/pc3-logica.yml up --build -d` |
+
+Antes hay que poner en `despliegue/.env` la IP del equipo siguiente y abrir el puerto en el firewall.
+Los pasos completos están en [despliegue/README.md](despliegue/README.md), y el diagrama de despliegue en
+[docs/despliegue.md](docs/despliegue.md).
 
 ## URLs y puertos
 
@@ -188,6 +204,7 @@ Ejecútalos así: `powershell -ExecutionPolicy Bypass -File .\scripts\smoke-test
 - **[Manual técnico (PDF)](docs/manual-tecnico.pdf)** · [fuente LaTeX](docs/manual-tecnico.tex): arquitectura, despliegue, pruebas y diagnóstico.
 - **[Manual de usuario (PDF)](docs/manual-usuario.pdf)** · [fuente LaTeX](docs/manual-usuario.tex): guía para operar la interfaz.
 - **[Diagrama de arquitectura (PDF)](docs/arquitectura.pdf)**: vista de los componentes y su flujo.
+- **[despliegue/README.md](despliegue/README.md)**: cómo correr el sistema repartido en tres equipos.
 - **[docs/api-contract.md](docs/api-contract.md)**: contrato del sistema: rutas, JSON, validaciones, mensajes de
   error exactos, esquema de la base de datos y responsabilidades de cada capa.
 - **[CONTRIBUTING.md](CONTRIBUTING.md)**: reglas de trabajo del equipo (ramas, commits, PRs, versiones y estilo).

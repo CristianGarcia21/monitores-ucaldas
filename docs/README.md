@@ -13,6 +13,7 @@ mediante servicios REST*.
 | 3. Implementación funcional del CRUD | Código en `frontend/`, `java-controller/`, `php-service/`, `python-service/` y `database/`; cómo ejecutarlo en el [README principal](../README.md); capturas y pruebas en el documento final |
 | 4. Endpoints | [endpoints.md](endpoints.md) · [colección Postman](postman/monitores.postman_collection.json) |
 | 5. Ventajas y dificultades | [ventajas-dificultades.md](ventajas-dificultades.md) |
+| Despliegue en tres equipos | [despliegue.md](despliegue.md) (diagrama de despliegue) · [guía paso a paso](../despliegue/README.md) |
 | **Documento final** (formato Universidad de Caldas) | [documento-final-ucaldas.docx](documento-final-ucaldas.docx) · [PDF](documento-final-ucaldas.pdf) |
 
 Los diagramas Mermaid se ven directamente en GitHub. Los PNG de `img/` se generan desde esos mismos
