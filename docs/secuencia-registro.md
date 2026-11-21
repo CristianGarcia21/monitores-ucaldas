@@ -32,51 +32,51 @@ Respuesta `201 Created` (`Content-Type: application/json; charset=utf-8`):
 sequenceDiagram
     autonumber
     actor U as Usuario
-    participant JS as Navegador (app.js / api.js)
-    participant NG as nginx (frontend :8080)
-    participant J as Java (java-controller :8081)
-    participant P as PHP (php-service :8082)
-    participant PY as Python (python-service :8083)
-    participant DB as PostgreSQL (:5432)
+    participant JS as Navegador (JS)
+    participant NG as nginx :8080
+    participant J as Java :8081
+    participant P as PHP :8082
+    participant PY as Python :8083
+    participant DB as PostgreSQL
 
-    U->>JS: Llena el formulario y pulsa "Guardar"
-    JS->>JS: leerFormulario(): validación visual (obligatorios, formato)
-    JS->>NG: POST /api/monitores<br/>{"codigo":" dev-001 ","nombre":"José  Ñúñez Peña",...}
-    NG->>J: POST /monitores (quita el prefijo /api)
-    J->>J: MonitorValidator.validarCreacion()<br/>normaliza (§6.1) y valida (§6.2)
+    U->>JS: Llena el formulario<br/>y pulsa Guardar
+    JS->>JS: leerFormulario()<br/>validación visual
+    JS->>NG: POST /api/monitores<br/>(JSON de ejemplo)
+    NG->>J: POST /monitores<br/>(quita /api)
+    J->>J: MonitorValidator<br/>normaliza y valida
 
-    alt Datos inválidos (p. ej. correo "jose@ucaldas", enviado desde Postman o curl)
-        J-->>NG: 400 {"error": "El correo no es válido"}
-        Note over J,PY: Java corta la cadena: PHP y Python no reciben nada
+    alt Datos inválidos (p. ej. desde Postman o curl)
+        J-->>NG: 400 {"error":<br/>"El correo no es válido"}
+        Note over P,PY: PHP y Python<br/>no reciben nada
         NG-->>JS: 400 (mismo cuerpo)
-        JS-->>U: Muestra el mensaje del backend tal cual
+        JS-->>U: Muestra el mensaje<br/>tal cual
     else Datos válidos
-        J->>P: POST /monitores (JSON normalizado)
-        P->>P: resolverRuta() y esObjetoJsonValido()
-        P->>PY: POST /monitores (mismo método, ruta y cuerpo, por cURL)
-        PY->>PY: MonitorCreate: normaliza y valida de nuevo
-        PY->>DB: SELECT 1 FROM materias WHERE id = %(id)s
-        DB-->>PY: 1 fila (la materia existe)
-        PY->>DB: INSERT INTO monitores ... RETURNING (con JOIN a materias)
+        J->>P: POST /monitores<br/>(JSON normalizado)
+        P->>P: valida ruta<br/>y JSON
+        P->>PY: POST /monitores<br/>(sin modificar, cURL)
+        PY->>PY: MonitorCreate<br/>valida de nuevo
+        PY->>DB: SELECT 1 FROM<br/>materias WHERE id
+        DB-->>PY: la materia existe
+        PY->>DB: INSERT ...<br/>RETURNING
 
         alt Camino feliz: el código no existe
-            DB-->>PY: fila insertada + materia_nombre
+            DB-->>PY: fila insertada
             PY->>DB: COMMIT
-            PY-->>P: 201 {monitor completo con materia_nombre}
+            PY-->>P: 201 + monitor<br/>con materia_nombre
             P-->>J: 201 (mismo cuerpo)
             J-->>NG: 201 (mismo cuerpo)
             NG-->>JS: 201 (mismo cuerpo)
-            JS->>NG: GET /api/monitores (recarga la tabla)
-            NG-->>JS: 200 [lista ordenada por código]
-            JS-->>U: "Monitor DEV-001 registrado correctamente" y fila nueva
+            JS->>NG: GET /api/monitores<br/>(recarga la tabla)
+            NG-->>JS: 200 [monitores]
+            JS-->>U: "Monitor DEV-001<br/>registrado correctamente"
         else Código duplicado (RF6)
-            DB-->>PY: UniqueViolation (clave primaria monitores.codigo)
+            DB-->>PY: UniqueViolation<br/>(clave primaria)
             PY->>DB: ROLLBACK
-            PY-->>P: 409 {"error": "Ya existe un monitor con el código DEV-001"}
-            P-->>J: 409 (mismo cuerpo, H7)
-            J-->>NG: 409 (mismo cuerpo, H7)
+            PY-->>P: 409 {"error": "Ya existe un<br/>monitor con el código DEV-001"}
+            P-->>J: 409 (mismo cuerpo)
+            J-->>NG: 409 (mismo cuerpo)
             NG-->>JS: 409 (mismo cuerpo)
-            JS-->>U: Muestra el mensaje y marca el campo código en rojo
+            JS-->>U: Muestra el mensaje y<br/>marca el código en rojo
         end
     end
 ```
