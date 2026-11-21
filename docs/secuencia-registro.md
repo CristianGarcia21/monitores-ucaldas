@@ -86,7 +86,7 @@ sequenceDiagram
 | Pasos | Qué pasa | Dónde está en el código |
 |-------|----------|-------------------------|
 | 1–3 | La interfaz valida lo básico y envía el JSON a la ruta relativa `/api/monitores` (A2) | `frontend/app.js` (`guardarMonitor`, `leerFormulario`), `frontend/api.js` (`crearMonitor`) |
-| 4 | nginx reenvía a Java quitando `/api` | `frontend/nginx.conf` (`location /api/`) |
+| 4 | nginx reenvía a Java quitando `/api` | `frontend/nginx.conf.template` (`location /api/`) |
 | 5 | Java normaliza y valida en el orden del §6.3 | `java-controller/.../validation/MonitorValidator.java` |
 | 6–8 | Alternativa 400: Java responde el primer error y **corta la cadena** | `java-controller/.../exception/GlobalExceptionHandler.java` |
 | 9–11 | PHP comprueba ruta, método y JSON, y reenvía sin modificar | `php-service/index.php`, `php-service/PythonClient.php` |

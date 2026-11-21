@@ -49,7 +49,7 @@ Navegador ─► nginx (frontend :8080) ─/api─► Java (:8081) ─► PHP (:
 **Por qué está presente**
 
 - Las cinco capas existen como componentes separados y cada una **solo llama a la siguiente**:
-  nginx solo conoce a Java (`proxy_pass` en `nginx.conf`), Java solo a PHP (`PHP_SERVICE_URL`), PHP
+  nginx solo conoce a Java (`proxy_pass` en `nginx.conf.template`), Java solo a PHP (`PHP_SERVICE_URL`), PHP
   solo a Python (`PYTHON_SERVICE_URL`) y solo Python abre conexiones con la base de datos (`db.py`).
 - Ninguna capa se salta a otra: así lo exige el contrato (A1) y lo cumple el enunciado ("las
   operaciones del CRUD deberán atravesar los componentes definidos").
@@ -170,7 +170,7 @@ Python sin él (A4). Los 7 endpoints están en [endpoints.md](endpoints.md).
 
 **Componentes que participan**
 
-- **nginx (proxy inverso / puerta de entrada):** `frontend/nginx.conf` reenvía
+- **nginx (proxy inverso / puerta de entrada):** `frontend/nginx.conf.template` reenvía
   `location /api/` a `http://java-controller:8081/` quitando el prefijo. El navegador solo conoce
   `http://localhost:8080`, sin CORS (H8) y sin ver los puertos internos.
 - **PHP (proxy de reenvío):** `php-service/index.php` compara la ruta con una tabla de rutas
@@ -179,7 +179,8 @@ Python sin él (A4). Los 7 endpoints están en [endpoints.md](endpoints.md).
 
 **Por qué está presente**
 
-- `frontend/nginx.conf` contiene `location /api/ { proxy_pass http://java-controller:8081/; }`. El
+- `frontend/nginx.conf.template` contiene `location /api/ { proxy_pass ${JAVA_SERVICE_URL}/; }`
+  (por defecto `http://java-controller:8081`). El
   navegador solo conoce `localhost:8080` y nunca las direcciones internas.
 - `php-service/index.php` reenvía a Python el **mismo método, ruta y cuerpo** que recibió (cURL en
   `PythonClient::forward`) y devuelve la respuesta sin cambiarla. Ese es el comportamiento de un proxy.
