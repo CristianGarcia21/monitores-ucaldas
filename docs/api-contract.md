@@ -1,6 +1,6 @@
 # Contrato del sistema – Gestión de Monitores Académicos
 
-**Versión 1.0 · 16 de noviembre de 2026**
+**Versión 1.1 · 21 de noviembre de 2026**
 
 Este documento es **la única fuente de verdad** del proyecto. Define cómo se comunican los componentes,
 qué datos se intercambian, cómo se validan y qué responde cada capa en cada caso.
@@ -65,10 +65,12 @@ Reglas de arquitectura (obligatorias, las exige el enunciado):
 | `database`        | `database`         | 5432   | Valentina Galvis |
 
 **Los puertos y nombres de host no se cambian.** Dentro de Docker se usa el nombre del servicio
-(`http://php-service:8082`); fuera de Docker se usa `localhost`.
+(`http://php-service:8082`); fuera de Docker se usa `localhost`. En el despliegue en tres equipos, la
+llamada de un equipo a otro usa la IP del otro equipo (ver [§2.1](#21-despliegue-en-tres-equipos)).
 
 | Servicio        | Variable             | Valor en Docker               | Valor por defecto (local) |
 |-----------------|----------------------|-------------------------------|---------------------------|
+| frontend        | `JAVA_SERVICE_URL`   | `http://java-controller:8081` | `http://java-controller:8081` |
 | java-controller | `PHP_SERVICE_URL`    | `http://php-service:8082`     | `http://localhost:8082`   |
 | php-service     | `PYTHON_SERVICE_URL` | `http://python-service:8083`  | `http://localhost:8083`   |
 | python-service  | `DB_HOST`            | `database`                    | `localhost`               |
@@ -79,6 +81,32 @@ Reglas de arquitectura (obligatorias, las exige el enunciado):
 
 - Ninguna URL, puerto o credencial se escribe "quemada" en el código: siempre se lee de la variable con ese valor por defecto.
 - Las URLs base **no** terminan en `/`.
+
+### 2.1 Despliegue en tres equipos
+
+Además del despliegue en un solo equipo (`docker-compose.yml`), el sistema puede repartirse en tres
+computadores de la misma red con los archivos de `despliegue/`:
+
+| Equipo | Capa | Servicios | Puerto abierto a la red |
+|--------|------|-----------|-------------------------|
+| PC1 | Presentación | `frontend`, `java-controller` | 8080 |
+| PC2 | Intermediario | `php-service` | 8082 |
+| PC3 | Lógica y datos | `python-service`, `database` | 8083 |
+
+- **Las rutas, los puertos, los cuerpos y los códigos no cambian.** Solo cambia el valor de dos
+  variables:
+  - en el PC1, `PHP_SERVICE_URL=http://<IP-PC2>:8082`;
+  - en el PC2, `PYTHON_SERVICE_URL=http://<IP-PC3>:8083`.
+
+  Siguen sin `/` final.
+- Dentro de un mismo equipo se sigue usando el nombre del servicio (`http://java-controller:8081`,
+  `DB_HOST=database`).
+- `python-service` y `database` van **siempre en el mismo equipo** (A3). PostgreSQL (5432) y
+  `java-controller` (8081) no se exponen a la red: solo se publican en `127.0.0.1`.
+- Los timeouts (T1) y los errores no cambian:
+  - E15 indica que el PC1 no alcanza al PC2;
+  - E16 indica que el PC2 no alcanza al PC3;
+  - E17 indica que la base de datos del PC3 no responde.
 
 ## 3. Convenciones HTTP
 
@@ -422,3 +450,4 @@ Checklist antes de dar por terminada una integración (ejecutar contra `http://l
 | Versión | Fecha | Cambio |
 |---------|-------|--------|
 | 1.0 | 16 nov 2026 | Versión inicial completa |
+| 1.1 | 21 nov 2026 | Despliegue en tres equipos (§2.1) y variable `JAVA_SERVICE_URL` del frontend (§2) |
