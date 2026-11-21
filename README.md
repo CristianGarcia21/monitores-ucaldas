@@ -184,7 +184,10 @@ Ejecútalos así: `powershell -ExecutionPolicy Bypass -File .\scripts\smoke-test
 
 ## Documentación
 
-- **[docs/](docs/)**: documentación del proyecto (diagramas y documento final).
+- **[docs/](docs/README.md)**: índice de documentación, manuales LaTeX/PDF y diagrama de arquitectura.
+- **[Manual técnico (PDF)](docs/manual-tecnico.pdf)** · [fuente LaTeX](docs/manual-tecnico.tex): arquitectura, despliegue, pruebas y diagnóstico.
+- **[Manual de usuario (PDF)](docs/manual-usuario.pdf)** · [fuente LaTeX](docs/manual-usuario.tex): guía para operar la interfaz.
+- **[Diagrama de arquitectura (PDF)](docs/arquitectura.pdf)**: vista de los componentes y su flujo.
 - **[docs/api-contract.md](docs/api-contract.md)**: contrato del sistema: rutas, JSON, validaciones, mensajes de
   error exactos, esquema de la base de datos y responsabilidades de cada capa.
 - **[CONTRIBUTING.md](CONTRIBUTING.md)**: reglas de trabajo del equipo (ramas, commits, PRs, versiones y estilo).

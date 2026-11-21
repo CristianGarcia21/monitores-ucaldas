@@ -1,0 +1,145 @@
+\input{preambulo-manuales.tex}
+
+\begin{document}
+
+\portada{Manual de usuario}{Guía de acceso y gestión de monitores}
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+
+\section{Antes de comenzar}
+
+El sistema permite registrar, consultar, editar y eliminar monitores académicos. Para usarlo, se necesita que el equipo donde corre la aplicación tenga Docker Desktop y Docker Compose v2 activos.
+
+\subsection{Iniciar la aplicación}
+
+Desde la carpeta del proyecto, abrir una terminal y ejecutar:
+
+\begin{lstlisting}
+docker compose up --build -d
+docker compose ps
+\end{lstlisting}
+
+Esperar a que los cinco servicios indiquen estado saludable y abrir \url{http://localhost:8080} en el navegador. La primera ejecución puede tardar varios minutos.
+
+Para cerrar la aplicación sin borrar la información, ejecutar:
+
+\begin{lstlisting}
+docker compose down
+\end{lstlisting}
+
+\section{Reconocer la pantalla}
+
+La pantalla principal contiene:
+\begin{itemize}
+  \item un indicador de conexión con el backend;
+  \item el formulario para registrar o editar;
+  \item el buscador por código y el botón \textbf{Ver todos};
+  \item la tabla de monitores con las acciones \textbf{Editar} y \textbf{Eliminar};
+  \item mensajes de resultado o de error.
+\end{itemize}
+
+Las materias se cargan desde el sistema. No se crean ni modifican desde esta pantalla.
+
+\section{Registrar un monitor}
+
+\begin{enumerate}
+  \item En el formulario \textbf{Registrar monitor}, escribir un código único. Se aceptan letras, números y guiones, hasta 20 caracteres; el sistema lo guarda en mayúsculas. Ejemplo: \codigo{M-008}.
+  \item Escribir el nombre completo, con entre 3 y 150 caracteres.
+  \item Ingresar un correo válido, de hasta 150 caracteres.
+  \item Seleccionar una materia de la lista.
+  \item Presionar \textbf{Guardar}.
+\end{enumerate}
+
+Si el registro se completa, aparece un mensaje de confirmación y la tabla se actualiza. Los campos obligatorios deben estar completos. Un código ya utilizado no se puede reutilizar.
+
+\section{Buscar y consultar}
+
+\subsection{Ver todos los registros}
+
+Presionar \textbf{Ver todos} para limpiar la búsqueda y volver a mostrar la lista completa. Si todavía no hay registros, la tabla indica que está vacía.
+
+\subsection{Buscar por código}
+
+Escribir el código en \textbf{Buscar por código} y presionar \textbf{Buscar}. La búsqueda no distingue mayúsculas de minúsculas; por ejemplo, \codigo{m-001} encuentra \codigo{M-001}. Para regresar a la lista completa, presionar \textbf{Ver todos}.
+
+\section{Editar un monitor}
+
+\begin{enumerate}
+  \item Encontrar el registro en la tabla.
+  \item Presionar \textbf{Editar}. Sus datos se cargan en el formulario.
+  \item Modificar nombre, correo o materia.
+  \item Presionar \textbf{Guardar cambios}.
+\end{enumerate}
+
+El código identifica al monitor y no se puede cambiar. Para descartar los cambios, presionar \textbf{Cancelar edición}; el formulario vuelve al modo de registro sin guardar.
+
+\section{Eliminar un monitor}
+
+\begin{enumerate}
+  \item Presionar \textbf{Eliminar} en la fila del monitor.
+  \item Revisar el código y confirmar en el diálogo.
+  \item Presionar \textbf{Eliminar} para continuar o \textbf{Cancelar} para conservar el registro.
+\end{enumerate}
+
+La eliminación es permanente dentro de la base de datos activa y no se puede deshacer desde la interfaz. Cerrar el diálogo, pulsar \codigo{Esc} o hacer clic fuera de él cancela la operación.
+
+\section{Mensajes y qué hacer}
+
+\begin{tabularx}{\textwidth}{p{0.38\textwidth}Y}
+\toprule
+\textbf{Mensaje o situación} & \textbf{Qué revisar} \\
+\midrule
+Código obligatorio o formato inválido & Escribir de 1 a 20 letras, números o guiones. \\
+Nombre obligatorio o longitud inválida & Ingresar entre 3 y 150 caracteres. \\
+Correo inválido & Comprobar que tenga usuario, \codigo{@} y un dominio con punto; no usar espacios. \\
+Materia obligatoria & Seleccionar una opción de la lista. \\
+Ya existe un monitor con ese código & Elegir un código diferente. \\
+No existe un monitor con ese código & Volver a la lista y confirmar que el registro todavía exista. \\
+No se pudo conectar con el servidor & Revisar que Docker esté en ejecución y que el frontend y los servicios aparezcan saludables. \\
+No se pudieron cargar materias o monitores & Revisar la conexión y solicitar ayuda técnica si el problema persiste. \\
+\bottomrule
+\end{tabularx}
+
+Los errores de validación del sistema se muestran tal como los genera el backend. Si una operación no puede completarse, corregir los datos o contactar a quien administra la instalación.
+
+\section{Datos y privacidad}
+
+El formulario almacena código, nombre, correo y materia. El sistema no solicita inicio de sesión: cualquier persona con acceso a la dirección de la aplicación puede operar sobre los registros. No publicar el servicio en una red abierta sin controles adicionales.
+
+Los datos permanecen al cerrar y volver a iniciar los contenedores. Solo se eliminan al borrar explícitamente el volumen de base de datos o reinicializarla.
+
+\section{Ayuda técnica}
+
+\subsection{La aplicación no abre}
+
+Comprobar que Docker Desktop esté abierto y que los puertos necesarios estén libres: 8080, 8081, 8082, 8083 y 5432. Si Docker informa que un puerto está ocupado, contactar a quien administra el entorno para cambiar el puerto en la configuración.
+
+\subsection{Un servicio no está saludable}
+
+Una persona con acceso a la carpeta del proyecto puede revisar:
+
+\begin{lstlisting}
+docker compose ps
+docker compose logs -f <servicio>
+\end{lstlisting}
+
+Los servicios son \codigo{database}, \codigo{python-service}, \codigo{php-service}, \codigo{java-controller} y \codigo{frontend}. El orden de inicio importa: un servicio puede quedar esperando mientras la capa anterior no esté lista.
+
+\Needspace{8\baselineskip}
+\subsection{Advertencia de pérdida de datos}
+
+\textbf{No ejecutar \codigo{docker compose down -v} ni \codigo{./scripts/reset-db.sh} si se quieren conservar los registros.}
+
+Estos comandos eliminan el volumen de PostgreSQL y vuelven a cargar los datos de demostración.
+
+\section{Documentos relacionados}
+
+\begin{itemize}
+  \item \archivo{manual-tecnico.pdf}: despliegue, arquitectura y diagnóstico.
+  \item \archivo{manual-tecnico.tex}: fuente LaTeX del manual técnico.
+  \item \archivo{arquitectura.pdf}: diagrama de la aplicación.
+  \item \archivo{api-contract.md}: contrato de rutas y respuestas.
+\end{itemize}
+
+\end{document}
