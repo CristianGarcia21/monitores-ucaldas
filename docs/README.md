@@ -1,5 +1,19 @@
 # Documentación del proyecto
 
+## Entregables del taller
+
+| Entregable | Documento |
+|------------|-----------|
+| 1. Arquitectura | [Diagrama de arquitectura](arquitectura.md) (Mermaid; [PNG](img/arquitectura.png)) · [PDF](arquitectura.pdf) |
+| 1. Estilos y patrones | [patrones.md](patrones.md) |
+| 2. Diagrama de secuencia (RF1) | [secuencia-registro.md](secuencia-registro.md) (Mermaid; [PNG](img/secuencia-registro.png)) |
+| 4. Endpoints | [endpoints.md](endpoints.md) · [colección Postman](postman/monitores.postman_collection.json) |
+| 5. Ventajas y dificultades | [ventajas-dificultades.md](ventajas-dificultades.md) |
+| Documento final | [documento-final.pdf](documento-final.pdf) |
+
+Los diagramas Mermaid se ven directamente en GitHub. Los PNG de `img/` se generan desde esos mismos
+bloques.
+
 ## Manuales
 
 - [Manual técnico (PDF)](manual-tecnico.pdf) · [fuente LaTeX](manual-tecnico.tex)
